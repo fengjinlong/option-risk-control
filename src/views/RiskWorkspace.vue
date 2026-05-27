@@ -23,11 +23,11 @@ onMounted(() => {
       <div class="header-right">
         <!-- {{ prices.data.data }} -->
         <!-- 价格模块 -->
-        <el-tag type="success" size="small">BTC: {{ prices.data.data.BTC ?? '--' }}</el-tag>
-        <el-tag type="success" size="small">ETH: {{ prices.data.data.ETH ?? '--' }}</el-tag>
-        <el-tag type="success" size="small">SOL: {{ prices.data.data.SOL ?? '--' }}</el-tag>
-        <el-tag type="success" size="small">LINK: {{ prices.data.data.LINK ?? '--' }}</el-tag>
-        <el-tag type="success" size="small">CRV: {{ prices.data.data.CRV ?? '--' }}</el-tag>
+        <el-tag type="danger" size="small">BTC: {{ prices.data.data?.BTC ?? '--' }}</el-tag>
+        <el-tag type="danger" size="small">ETH: {{ prices.data.data?.ETH ?? '--' }}</el-tag>
+        <el-tag type="danger" size="small">SOL: {{ prices.data.data?.SOL ?? '--' }}</el-tag>
+        <el-tag type="danger" size="small">LINK: {{ prices.data.data?.LINK ?? '--' }}</el-tag>
+        <el-tag type="danger" size="small">CRV: {{ prices.data.data?.CRV ?? '--' }}</el-tag>
         <el-tag type="success" size="small">● LIVE</el-tag>
       </div>
     </header>
