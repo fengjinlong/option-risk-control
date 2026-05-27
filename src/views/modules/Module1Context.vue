@@ -30,10 +30,10 @@ const greekRows = computed(() => {
   const t = greeksThresholds.value
   if (!s || !t) return []
   return [
-    { label: 'Delta', val: s.total_net_delta, threshold: t.delta_limit, unit: '' },
-    { label: 'Gamma', val: s.total_net_gamma, threshold: t.gamma_limit, unit: '' },
-    { label: 'Vega',  val: s.total_net_vega,  threshold: t.vega_limit,  unit: '/%' },
-    { label: 'Theta', val: s.total_net_theta, threshold: t.theta_limit, unit: '/day' },
+    { label: 'Delta', val: s.total_net_delta, threshold: t.delta_limit, unit: '', decimals: 4 },
+    { label: 'Gamma', val: s.total_net_gamma, threshold: t.gamma_limit, unit: '', decimals: 6 },
+    { label: 'Vega',  val: s.total_net_vega,  threshold: t.vega_limit,  unit: '/%', decimals: 4 },
+    { label: 'Theta', val: s.total_net_theta, threshold: t.theta_limit, unit: '/day', decimals: 4 },
   ]
 })
 
@@ -68,9 +68,10 @@ const positionCols = [
 
 function cellVal(pos: any, key: string): string {
   const v = pos[key]
-  if (key === 'side')      return v === 'Buy' ? '买入' : '卖出'
-  if (key === 'pnl')       return `${v >= 0 ? '+' : ''}${v.toFixed(2)}`
-  if (['net_delta','net_gamma','net_vega','net_theta'].includes(key)) return v.toFixed(4)
+  if (key === 'side') return v === 'Buy' ? '买入' : '卖出'
+  if (key === 'pnl') return `${v >= 0 ? '+' : ''}${v.toFixed(2)}`
+  if (key === 'net_gamma') return v.toFixed(6)
+  if (['net_delta', 'net_vega', 'net_theta'].includes(key)) return v.toFixed(4)
   if (typeof v === 'number') return v.toFixed(2)
   return String(v)
 }
@@ -168,9 +169,9 @@ function cellVal(pos: any, key: string): string {
             <div class="greek-header">
               <span class="greek-label">{{ row.label }}</span>
               <span class="greek-values">
-                <span class="greek-val">{{ fmt(row.val, 4) }}</span>
+                <span class="greek-val">{{ fmt(row.val, row.decimals) }}</span>
                 <span class="greek-sep"> / </span>
-                <span class="greek-threshold">{{ fmt(row.threshold, 4) }}</span>
+                <span class="greek-threshold">{{ fmt(row.threshold, row.decimals) }}</span>
                 <span class="greek-unit">{{ row.unit }}</span>
               </span>
             </div>
