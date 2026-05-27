@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRiskWorkspace } from '../composables/useRiskWorkspace'
-import type { Leg } from '../composables/useRiskWorkspace'
+import { useRiskWorkspace, type Leg } from '../../composables/useRiskWorkspace'
+// import { useRiskWorkspace } from '../composables/useRiskWorkspace'
+// import type { Leg } from '../composables/useRiskWorkspace'
 
-const { account, legs, addLeg, removeLeg, updateLeg, resetSandbox, commitSandbox } =
+const { legs, addLeg, removeLeg, updateLeg, resetSandbox, commitSandbox } =
   useRiskWorkspace()
 
 const symbols = ['BTC-PERP', 'ETH-PERP', 'SOL-PERP', 'SOL-27JUN25', 'BTC-27JUN25']
@@ -42,21 +43,10 @@ const directionStyle = (d: string) => ({
     <!-- Legs -->
     <div class="legs-container">
       <transition-group name="leg-slide" tag="div" class="legs-list">
-        <div
-          v-for="(leg, idx) in legs"
-          :key="leg.id"
-          class="leg-card"
-          :style="directionStyle(leg.direction)"
-        >
+        <div v-for="(leg, idx) in legs" :key="leg.id" class="leg-card" :style="directionStyle(leg.direction)">
           <div class="leg-header">
             <span class="leg-index">Leg {{ idx + 1 }}</span>
-            <el-button
-              size="small"
-              type="danger"
-              plain
-              circle
-              @click="removeLeg(leg.id)"
-            >
+            <el-button size="small" type="danger" plain circle @click="removeLeg(leg.id)">
               ✕
             </el-button>
           </div>
@@ -64,11 +54,8 @@ const directionStyle = (d: string) => ({
           <!-- Direction -->
           <div class="leg-row">
             <span class="leg-label">方向</span>
-            <el-radio-group
-              :model-value="leg.direction"
-              size="small"
-              @update:model-value="updateLeg(leg.id, { direction: $event })"
-            >
+            <el-radio-group :model-value="leg.direction" size="small"
+              @update:model-value="updateLeg(leg.id, { direction: $event })">
               <el-radio-button value="buy">
                 <span class="dir-text buy">🟢 Buy</span>
               </el-radio-button>
@@ -81,11 +68,8 @@ const directionStyle = (d: string) => ({
           <!-- Type -->
           <div class="leg-row">
             <span class="leg-label">类型</span>
-            <el-radio-group
-              :model-value="leg.type"
-              size="small"
-              @update:model-value="updateLeg(leg.id, { type: $event })"
-            >
+            <el-radio-group :model-value="leg.type" size="small"
+              @update:model-value="updateLeg(leg.id, { type: $event })">
               <el-radio-button value="call">Call</el-radio-button>
               <el-radio-button value="put">Put</el-radio-button>
             </el-radio-group>
@@ -94,27 +78,13 @@ const directionStyle = (d: string) => ({
           <!-- Strike + Size -->
           <div class="leg-row">
             <span class="leg-label">Strike</span>
-            <el-input-number
-              :model-value="leg.strike"
-              size="small"
-              :min="1000"
-              :max="200000"
-              :step="500"
-              :precision="0"
-              @update:model-value="updateLeg(leg.id, { strike: $event as number })"
-            />
+            <el-input-number :model-value="leg.strike" size="small" :min="1000" :max="200000" :step="500" :precision="0"
+              @update:model-value="updateLeg(leg.id, { strike: $event as number })" />
           </div>
           <div class="leg-row">
             <span class="leg-label">Size</span>
-            <el-input-number
-              :model-value="leg.size"
-              size="small"
-              :min="0.1"
-              :max="100"
-              :step="0.1"
-              :precision="1"
-              @update:model-value="updateLeg(leg.id, { size: $event as number })"
-            />
+            <el-input-number :model-value="leg.size" size="small" :min="0.1" :max="100" :step="0.1" :precision="1"
+              @update:model-value="updateLeg(leg.id, { size: $event as number })" />
           </div>
 
           <!-- IV hint -->
@@ -148,7 +118,7 @@ const directionStyle = (d: string) => ({
   display: flex;
   flex-direction: column;
   gap: 10px;
-  height: 100%;
+  /* height: 100%; */
   overflow-y: auto;
   padding: 8px;
 }
@@ -171,16 +141,25 @@ const directionStyle = (d: string) => ({
   border-radius: 50%;
   display: inline-block;
 }
-.dot.orange { background: #faad14; }
+
+.dot.orange {
+  background: #faad14;
+}
 
 .filter-bar {
   display: flex;
   gap: 8px;
 }
 
-.legs-container { flex: 1; }
+.legs-container {
+  flex: 1;
+}
 
-.legs-list { display: flex; flex-direction: column; gap: 8px; }
+.legs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
 .leg-card {
   background: var(--el-fill-color-light);
@@ -220,9 +199,17 @@ const directionStyle = (d: string) => ({
   flex-shrink: 0;
 }
 
-.dir-text { font-size: 12px; }
-.dir-text.buy { color: #52c41a; }
-.dir-text.sell { color: #ff4d4f; }
+.dir-text {
+  font-size: 12px;
+}
+
+.dir-text.buy {
+  color: #52c41a;
+}
+
+.dir-text.sell {
+  color: #ff4d4f;
+}
 
 .iv-hint {
   font-size: 10px;
@@ -243,24 +230,30 @@ const directionStyle = (d: string) => ({
   font-size: 12px;
 }
 
-.add-btn { width: 100%; }
+.add-btn {
+  width: 100%;
+}
 
 .controls {
   display: flex;
   gap: 8px;
 }
 
-.controls .el-button { flex: 1; }
+.controls .el-button {
+  flex: 1;
+}
 
 /* Transition */
 .leg-slide-enter-active,
 .leg-slide-leave-active {
   transition: all 0.25s ease;
 }
+
 .leg-slide-enter-from {
   opacity: 0;
   transform: translateY(-8px);
 }
+
 .leg-slide-leave-to {
   opacity: 0;
   transform: translateX(20px);

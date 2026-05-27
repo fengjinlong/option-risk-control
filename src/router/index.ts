@@ -1,6 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Home from '../views/Home.vue'
-import Another from '../views/Another.vue'
 import RiskWorkspace from '../views/RiskWorkspace.vue'
 
 const router = createRouter({
@@ -8,18 +6,12 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: Home,
-    },
-    {
-      path: '/another',
-      name: 'another',
-      component: Another,
+      name: 'risk',
+      component: RiskWorkspace,
     },
     {
       path: '/risk',
-      name: 'risk',
-      component: RiskWorkspace,
+      redirect: '/',
     },
   ],
 })

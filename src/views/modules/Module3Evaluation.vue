@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useRiskWorkspace } from '../composables/useRiskWorkspace'
-import type { HeatCell } from '../composables/useRiskWorkspace'
+import { computed } from 'vue'
+import { useRiskWorkspace, type HeatCell } from '../../composables/useRiskWorkspace'
 
-const { account } = useRiskWorkspace()
-const state = account
+const { state } = useRiskWorkspace()
 
 const PRICE_PCTS = [-20, -15, -10, -5, 0, 5, 10, 15, 20]
 const IV_PCTS = [-10, -5, 0, 5, 10, 15, 20]
@@ -153,12 +151,9 @@ const alertMsg = computed(() => {
           <tbody>
             <tr v-for="pricePct in PRICE_PCTS" :key="pricePct">
               <td class="row-label">{{ pricePct > 0 ? `+${pricePct}` : pricePct }}%</td>
-              <td
-                v-for="ivPct in IV_PCTS"
-                :key="ivPct"
-                :style="cellStyle(state.result.heatMatrix.find(c => c.pricePct === pricePct && c.ivPct === ivPct)!)"
-              >
-                {{ cellText(state.result.heatMatrix.find(c => c.pricePct === pricePct && c.ivPct === ivPct)!) }}
+              <td v-for="ivPct in IV_PCTS" :key="ivPct"
+                :style="cellStyle(state.result.heatMatrix.find(c => c.pricePct === pricePct && c.ivPct === ivPct)!)">
+                {{cellText(state.result.heatMatrix.find(c => c.pricePct === pricePct && c.ivPct === ivPct)!)}}
               </td>
             </tr>
           </tbody>
@@ -173,12 +168,8 @@ const alertMsg = computed(() => {
     </div>
 
     <!-- Alert -->
-    <el-alert
-      :title="alertMsg"
-      :type="isHighRisk ? 'error' : isWarning ? 'warning' : 'success'"
-      show-icon
-      :closable="false"
-    />
+    <el-alert :title="alertMsg" :type="isHighRisk ? 'error' : isWarning ? 'warning' : 'success'" show-icon
+      :closable="false" />
   </div>
 </template>
 
@@ -187,7 +178,7 @@ const alertMsg = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  height: 100%;
+  /* height: 100%; */
   overflow-y: auto;
   padding: 8px;
 }
@@ -210,9 +201,18 @@ const alertMsg = computed(() => {
   border-radius: 50%;
   display: inline-block;
 }
-.dot.green { background: #52c41a; }
-.dot.orange { background: #faad14; }
-.dot.red { background: #ff4d4f; }
+
+.dot.green {
+  background: #52c41a;
+}
+
+.dot.orange {
+  background: #faad14;
+}
+
+.dot.red {
+  background: #ff4d4f;
+}
 
 .card {
   background: var(--el-fill-color-light);
@@ -239,16 +239,38 @@ const alertMsg = computed(() => {
   flex-wrap: wrap;
 }
 
-.mm-before { color: var(--el-text-color-secondary); }
-.arrow { color: var(--el-text-color-placeholder); font-size: 16px; }
-.mm-after { color: var(--el-color-primary); font-weight: 700; }
-.mm-delta { font-size: 12px; }
-.mm-delta.up { color: #ff4d4f; }
-.mm-delta.down { color: #52c41a; }
+.mm-before {
+  color: var(--el-text-color-secondary);
+}
 
-.greek-table { font-size: 11px; }
+.arrow {
+  color: var(--el-text-color-placeholder);
+  font-size: 16px;
+}
 
-.gth, .gtr {
+.mm-after {
+  color: var(--el-color-primary);
+  font-weight: 700;
+}
+
+.mm-delta {
+  font-size: 12px;
+}
+
+.mm-delta.up {
+  color: #ff4d4f;
+}
+
+.mm-delta.down {
+  color: #52c41a;
+}
+
+.greek-table {
+  font-size: 11px;
+}
+
+.gth,
+.gtr {
   display: grid;
   grid-template-columns: 60px 1fr 1fr 1fr;
   gap: 4px;
@@ -261,16 +283,39 @@ const alertMsg = computed(() => {
   border-bottom: 1px solid var(--el-border-color);
 }
 
-.gtr { align-items: center; }
+.gtr {
+  align-items: center;
+}
 
-.glabel { color: var(--el-text-color-secondary); }
-.gbase { color: var(--el-text-color-regular); font-family: 'JetBrains Mono', monospace; }
-.gnew { color: var(--el-color-primary-light-3); font-family: 'JetBrains Mono', monospace; }
-.gdiff { font-family: 'JetBrains Mono', monospace; }
-.gdiff.up { color: #ff4d4f; }
-.gdiff.down { color: #52c41a; }
+.glabel {
+  color: var(--el-text-color-secondary);
+}
 
-.heat-card {}
+.gbase {
+  color: var(--el-text-color-regular);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.gnew {
+  color: var(--el-color-primary-light-3);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.gdiff {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.gdiff.up {
+  color: #ff4d4f;
+}
+
+.gdiff.down {
+  color: #52c41a;
+}
+
+.heat-card {
+  overflow: hidden;
+}
 
 .matrix-meta {
   display: flex;
@@ -286,7 +331,9 @@ const alertMsg = computed(() => {
   font-weight: 700;
 }
 
-.matrix-wrap { overflow-x: auto; }
+.matrix-wrap {
+  overflow-x: auto;
+}
 
 .matrix-table {
   width: 100%;
@@ -307,7 +354,7 @@ const alertMsg = computed(() => {
 
 .matrix-table td {
   padding: 4px 6px;
-  border: 1px solid rgba(0,0,0,0.15);
+  border: 1px solid rgba(0, 0, 0, 0.15);
   white-space: nowrap;
   transition: background 0.2s;
 }
@@ -327,9 +374,28 @@ const alertMsg = computed(() => {
   flex-wrap: wrap;
 }
 
-.legend { padding: 2px 6px; border-radius: 4px; }
-.legend.safe { background: #14532d; color: #4ade80; }
-.legend.warn { background: #78350f; color: #fde68a; }
-.legend.danger { background: #9a3412; color: #fed7aa; }
-.legend.liquid { background: #7f1d1d; color: #fff; }
+.legend {
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.legend.safe {
+  background: #14532d;
+  color: #4ade80;
+}
+
+.legend.warn {
+  background: #78350f;
+  color: #fde68a;
+}
+
+.legend.danger {
+  background: #9a3412;
+  color: #fed7aa;
+}
+
+.legend.liquid {
+  background: #7f1d1d;
+  color: #fff;
+}
 </style>

@@ -40,8 +40,8 @@ import Module3Evaluation from './modules/Module3Evaluation.vue'
 .workspace {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
+  /* height: 100vh; */
+  /* overflow: hidden; */
   background: var(--el-bg-color);
 }
 
@@ -62,7 +62,9 @@ import Module3Evaluation from './modules/Module3Evaluation.vue'
   gap: 8px;
 }
 
-.logo-text { font-size: 18px; }
+.logo-text {
+  font-size: 18px;
+}
 
 .title {
   font-size: 13px;
@@ -89,9 +91,19 @@ import Module3Evaluation from './modules/Module3Evaluation.vue'
   border-right: 1px solid var(--el-border-color);
 }
 
-.col:last-child { border-right: none; }
+.col:last-child {
+  border-right: none;
+}
 
-.col-context { background: var(--el-fill-color-lighter); }
-.col-sandbox { background: var(--el-bg-color); }
-.col-eval { background: var(--el-fill-color-lighter); }
+.col-context {
+  background: var(--el-fill-color-lighter);
+}
+
+.col-sandbox {
+  background: var(--el-bg-color);
+}
+
+.col-eval {
+  background: var(--el-fill-color-lighter);
+}
 </style>

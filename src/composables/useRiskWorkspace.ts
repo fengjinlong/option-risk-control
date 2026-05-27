@@ -14,19 +14,6 @@ export interface Leg {
   liquidityCost: number
 }
 
-export interface AccountData {
-  equity: number
-  mm: number
-  im: number
-  delta: number
-  gamma: number
-  vega: number
-  theta: number
-  dvol: number
-  ivRank: number
-  skew25d: number
-}
-
 export interface GreeksComparison {
   delta: number
   gamma: number
@@ -52,7 +39,7 @@ export interface Risk评估Result {
   heatMatrix: HeatCell[]
 }
 
-const defaultAccount: AccountData = {
+const ACCOUNT = {
   equity: 12.45,
   mm: 1.45,
   im: 2.1,
@@ -63,7 +50,7 @@ const defaultAccount: AccountData = {
   dvol: 82.5,
   ivRank: 54.2,
   skew25d: -3.1,
-}
+} as const
 
 const defaultLeg = (): Leg => ({
   id: crypto.randomUUID(),
@@ -78,13 +65,13 @@ const defaultLeg = (): Leg => ({
 
 // ── simulation engine ──────────────────────────────────────────────────────
 function calcLegMM(leg: Leg): number {
-  const direction = leg.direction === 'buy' ? 1 : -1
+  const dir = leg.direction === 'buy' ? 1 : -1
   const typeSign = leg.type === 'call' ? 1 : 0.6
   const notional = leg.strike * leg.size * 0.001
-  return notional * typeSign * 0.01 * (direction === 1 ? 1.2 : 1.0)
+  return notional * typeSign * 0.01 * (dir === 1 ? 1.2 : 1.0)
 }
 
-function calcLegGreeks(leg: Leg): { delta: number; gamma: number; vega: number; theta: number } {
+function calcLegGreeks(leg: Leg) {
   const dir = leg.direction === 'buy' ? 1 : -1
   const t = leg.type === 'call' ? 1 : 0.7
   const sz = leg.size
@@ -96,20 +83,17 @@ function calcLegGreeks(leg: Leg): { delta: number; gamma: number; vega: number; 
   }
 }
 
-function calcHeatMatrix(legs: Leg[], mmDelta: number): HeatCell[] {
+function calcHeatMatrix(_legs: Leg[], mmDelta: number): HeatCell[] {
   const cells: HeatCell[] = []
-  const baseEquity = defaultAccount.equity
-  const baseMM = defaultAccount.mm
-
   for (const pricePct of [-20, -15, -10, -5, 0, 5, 10, 15, 20]) {
     for (const ivPct of [-10, -5, 0, 5, 10, 15, 20]) {
       const scaleFactor = 1 + pricePct * 0.008 + ivPct * 0.003
-      const mm = baseMM + mmDelta * scaleFactor
+      const mm = ACCOUNT.mm + mmDelta * scaleFactor
       cells.push({
         pricePct,
         ivPct,
         mm: parseFloat(mm.toFixed(4)),
-        liquidated: mm > baseEquity,
+        liquidated: mm > ACCOUNT.equity,
       })
     }
   }
@@ -117,13 +101,12 @@ function calcHeatMatrix(legs: Leg[], mmDelta: number): HeatCell[] {
 }
 
 function calc评估(legs: Leg[]): Risk评估Result {
-  const legMMs = legs.map(calcLegMM)
-  const mmDelta = legMMs.reduce((s, v) => s + v, 0)
-  const mmAfter = defaultAccount.mm + mmDelta
+  const mmDelta = legs.reduce((s, l) => s + calcLegMM(l), 0)
+  const mmAfter = ACCOUNT.mm + mmDelta
 
-  const newGreeks = legs.reduce(
-    (acc, leg) => {
-      const g = calcLegGreeks(leg)
+  const ng = legs.reduce(
+    (acc, l) => {
+      const g = calcLegGreeks(l)
       return {
         delta: acc.delta + g.delta,
         gamma: acc.gamma + g.gamma,
@@ -138,60 +121,51 @@ function calc评估(legs: Leg[]): Risk评估Result {
     mmAfter: parseFloat(mmAfter.toFixed(4)),
     mmDelta: parseFloat(mmDelta.toFixed(4)),
     greeks: {
-      delta: defaultAccount.delta,
-      gamma: defaultAccount.gamma,
-      vega: defaultAccount.vega,
-      theta: defaultAccount.theta,
-      deltaNew: defaultAccount.delta + newGreeks.delta,
-      gammaNew: defaultAccount.gamma + newGreeks.gamma,
-      vegaNew: defaultAccount.vega + newGreeks.vega,
-      thetaNew: defaultAccount.theta + newGreeks.theta,
+      delta: ACCOUNT.delta,
+      gamma: ACCOUNT.gamma,
+      vega: ACCOUNT.vega,
+      theta: ACCOUNT.theta,
+      deltaNew: ACCOUNT.delta + ng.delta,
+      gammaNew: ACCOUNT.gamma + ng.gamma,
+      vegaNew: ACCOUNT.vega + ng.vega,
+      thetaNew: ACCOUNT.theta + ng.theta,
     },
     heatMatrix: calcHeatMatrix(legs, mmDelta),
   }
 }
 
-// ── state ────────────────────────────────────────────────────────────────────
-const state = reactive<{
-  account: AccountData
+// ── flat state (fields at top level for easy access) ─────────────────────
+interface WorkspaceState {
+  equity: number
+  mm: number
+  im: number
+  delta: number
+  gamma: number
+  vega: number
+  theta: number
+  dvol: number
+  ivRank: number
+  skew25d: number
   legs: Leg[]
-  legsSnapshot: Leg[]
   result: Risk评估Result
   debounceTimer: ReturnType<typeof setTimeout> | null
-}>({
-  account: { ...defaultAccount },
+}
+
+const state = reactive<WorkspaceState>({
+  equity: ACCOUNT.equity,
+  mm: ACCOUNT.mm,
+  im: ACCOUNT.im,
+  delta: ACCOUNT.delta,
+  gamma: ACCOUNT.gamma,
+  vega: ACCOUNT.vega,
+  theta: ACCOUNT.theta,
+  dvol: ACCOUNT.dvol,
+  ivRank: ACCOUNT.ivRank,
+  skew25d: ACCOUNT.skew25d,
   legs: [],
-  legsSnapshot: [],
   result: calc评估([]),
   debounceTimer: null,
 })
-
-function addLeg() {
-  state.legs.push(defaultLeg())
-  schedule评估()
-}
-
-function removeLeg(id: string) {
-  state.legs = state.legs.filter((l) => l.id !== id)
-  schedule评估()
-}
-
-function updateLeg(id: string, patch: Partial<Leg>) {
-  const leg = state.legs.find((l) => l.id === id)
-  if (leg) Object.assign(leg, patch)
-  schedule评估()
-}
-
-function resetSandbox() {
-  state.legs = []
-  state.legsSnapshot = []
-  schedule评估()
-}
-
-function commitSandbox() {
-  state.legsSnapshot = state.legs.map((l) => ({ ...l }))
-  schedule评估()
-}
 
 function schedule评估() {
   if (state.debounceTimer) clearTimeout(state.debounceTimer)
@@ -202,11 +176,16 @@ function schedule评估() {
 
 export function useRiskWorkspace() {
   return {
-    account: readonly(state),
-    addLeg,
-    removeLeg,
-    updateLeg,
-    resetSandbox,
-    commitSandbox,
+    state: readonly(state) as Readonly<WorkspaceState>,
+    legs: readonly(state.legs) as Readonly<Leg[]>,
+    addLeg: () => { state.legs.push(defaultLeg()); schedule评估() },
+    removeLeg: (id: string) => { state.legs = state.legs.filter(l => l.id !== id); schedule评估() },
+    updateLeg: (id: string, patch: Partial<Leg>) => {
+      const leg = state.legs.find(l => l.id === id)
+      if (leg) Object.assign(leg, patch)
+      schedule评估()
+    },
+    resetSandbox: () => { state.legs = []; schedule评估() },
+    commitSandbox: () => schedule评估(),
   }
 }
