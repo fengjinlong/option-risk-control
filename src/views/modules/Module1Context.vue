@@ -2,18 +2,16 @@
 import { onMounted, onUnmounted, computed } from 'vue'
 import { useRiskWorkspace } from '../../composables/useRiskWorkspace'
 
-const { health, state, startHealthPoll, stopHealthPoll } = useRiskWorkspace()
+const { health, state } = useRiskWorkspace()
 
-onMounted(() => startHealthPoll(30000))
-onUnmounted(() => stopHealthPoll())
 
 // Card border & dot color driven by risk level
 const riskConfig = computed(() => {
   const map: Record<string, { border: string; dot: string; label: string; type: string }> = {
-    SAFE:        { border: '#52c41a', dot: '#52c41a', label: 'SAFE',        type: 'success' },
-    ATTENTION:   { border: '#faad14', dot: '#faad14', label: 'ATTENTION',  type: 'warning' },
-    HIGH_RISK:   { border: '#fa8c16', dot: '#fa8c16', label: 'HIGH_RISK',  type: 'warning' },
-    CRITICAL:    { border: '#ff4d4f', dot: '#ff4d4f', label: 'CRITICAL',  type: 'danger' },
+    SAFE: { border: '#52c41a', dot: '#52c41a', label: 'SAFE', type: 'success' },
+    ATTENTION: { border: '#faad14', dot: '#faad14', label: 'ATTENTION', type: 'warning' },
+    HIGH_RISK: { border: '#fa8c16', dot: '#fa8c16', label: 'HIGH_RISK', type: 'warning' },
+    CRITICAL: { border: '#ff4d4f', dot: '#ff4d4f', label: 'CRITICAL', type: 'danger' },
   }
   const r = health.riskLevel || 'SAFE'
   return map[r] ?? map.SAFE
@@ -22,7 +20,7 @@ const riskConfig = computed(() => {
 const greekRows = computed(() => [
   { label: 'Delta', val: state.delta, unit: '' },
   { label: 'Gamma', val: state.gamma, unit: '' },
-  { label: 'Vega',  val: state.vega,  unit: 'BTC/%' },
+  { label: 'Vega', val: state.vega, unit: 'BTC/%' },
   { label: 'Theta', val: state.theta, unit: 'BTC/day' },
 ])
 </script>
@@ -40,21 +38,12 @@ const greekRows = computed(() => [
     </div>
 
     <!-- Error -->
-    <el-alert
-      v-else-if="health.error"
-      :title="health.error"
-      type="error"
-      show-icon
-      :closable="false"
-      class="error-alert"
-    />
+    <el-alert v-else-if="health.error" :title="health.error" type="error" show-icon :closable="false"
+      class="error-alert" />
 
     <template v-else-if="health.data">
       <!-- Risk Level Banner -->
-      <div
-        class="risk-banner"
-        :style="{ borderColor: riskConfig.border, color: riskConfig.border }"
-      >
+      <div class="risk-banner" :style="{ borderColor: riskConfig.border, color: riskConfig.border }">
         <span class="risk-dot" :style="{ background: riskConfig.dot }"></span>
         <span class="risk-label">{{ riskConfig.label }}</span>
         <el-tag :type="riskConfig.type as any" size="small" class="env-tag">
@@ -90,12 +79,8 @@ const greekRows = computed(() => [
             <span>保证金利用率</span>
             <span :style="{ color: riskConfig.border }">{{ health.marginUtilization }}%</span>
           </div>
-          <el-progress
-            :percentage="Math.min(health.marginUtilization, 100)"
-            :color="riskConfig.border"
-            :show-text="false"
-            :stroke-width="8"
-          />
+          <el-progress :percentage="Math.min(health.marginUtilization, 100)" :color="riskConfig.border"
+            :show-text="false" :stroke-width="8" />
           <div class="progress-sub">
             <span>IM 占用率 {{ health.initialMarginRate }}%</span>
             <span>保证金余额 ${{ health.marginBalance.toLocaleString() }}</span>
@@ -106,6 +91,15 @@ const greekRows = computed(() => [
       <!-- Greeks -->
       <div class="card" :style="{ borderLeftColor: riskConfig.border }">
         <div class="card-title">现有 Greeks 暴露</div>
+        <div class="greek-list">
+          <div v-for="row in greekRows" :key="row.label" class="greek-row">
+            <span class="greek-label">{{ row.label }}</span>
+            <span class="greek-val">{{ row.val.toFixed(3) }} {{ row.unit }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="card" :style="{ borderLeftColor: riskConfig.border }">
+        <div class="card-title">现有仓位</div>
         <div class="greek-list">
           <div v-for="row in greekRows" :key="row.label" class="greek-row">
             <span class="greek-label">{{ row.label }}</span>
@@ -158,7 +152,9 @@ const greekRows = computed(() => [
   padding: 12px;
 }
 
-.error-alert { border-radius: 8px; }
+.error-alert {
+  border-radius: 8px;
+}
 
 .risk-banner {
   display: flex;
@@ -184,7 +180,9 @@ const greekRows = computed(() => [
   flex: 1;
 }
 
-.env-tag { margin-left: auto; }
+.env-tag {
+  margin-left: auto;
+}
 
 .card {
   background: var(--el-fill-color-light);
@@ -228,11 +226,21 @@ const greekRows = computed(() => [
   font-family: 'JetBrains Mono', monospace;
 }
 
-.metric-value.accent { color: var(--el-color-primary); }
-.metric-value.warn   { color: #faad14; }
-.metric-value.safe   { color: #52c41a; }
+.metric-value.accent {
+  color: var(--el-color-primary);
+}
 
-.progress-block { margin-top: 4px; }
+.metric-value.warn {
+  color: #faad14;
+}
+
+.metric-value.safe {
+  color: #52c41a;
+}
+
+.progress-block {
+  margin-top: 4px;
+}
 
 .progress-label {
   display: flex;
@@ -263,7 +271,9 @@ const greekRows = computed(() => [
   font-size: 12px;
 }
 
-.greek-label { color: var(--el-text-color-secondary); }
+.greek-label {
+  color: var(--el-text-color-secondary);
+}
 
 .greek-val {
   font-family: 'JetBrains Mono', monospace;

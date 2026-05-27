@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted } from 'vue'
 import Module1Context from './modules/Module1Context.vue'
 import Module2Sandbox from './modules/Module2Sandbox.vue'
 import Module3Evaluation from './modules/Module3Evaluation.vue'
 import { useRiskWorkspace } from '../composables/useRiskWorkspace'
 
-const { startHealthPoll, stopHealthPoll } = useRiskWorkspace()
+const { fetchHealth } = useRiskWorkspace()
 
-onMounted(() => startHealthPoll(30000))
-onUnmounted(() => stopHealthPoll())
+onMounted(() => fetchHealth())
 </script>
 
 <template>
@@ -47,7 +46,7 @@ onUnmounted(() => stopHealthPoll())
 .workspace {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  /* height: 100vh; */
   overflow: hidden;
   background: var(--el-bg-color);
 }
@@ -88,7 +87,7 @@ onUnmounted(() => stopHealthPoll())
 
 .workspace-body {
   display: grid;
-  grid-template-columns: 240px 1fr 360px;
+  grid-template-columns: 1fr 2fr 1fr;
   flex: 1;
   overflow: hidden;
 }

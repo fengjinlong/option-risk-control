@@ -156,13 +156,11 @@ const healthState = reactive<HealthState>({
   riskLevel: '',
 })
 
-let pollTimer: ReturnType<typeof setInterval> | null = null
-
 function round2(v: number): number {
   return Math.round(v * 100) / 100
 }
 
-async function fetchHealth() {
+async function fetchHealth(): Promise<boolean> {
   healthState.loading = true
   healthState.error = null
   try {
@@ -170,7 +168,7 @@ async function fetchHealth() {
     const h = res as unknown as AccountHealth
     if (h.status !== 'success') {
       healthState.error = h.status
-      return
+      return false
     }
     healthState.data = h
     healthState.equity = round2(h.metrics.total_equity_usd)
@@ -181,22 +179,12 @@ async function fetchHealth() {
     healthState.marginUtilization = round2(h.metrics.margin_utilization_rate)
     healthState.initialMarginRate = round2(h.metrics.initial_margin_rate)
     healthState.riskLevel = h.risk_level
+    return true
   } catch (e: any) {
     healthState.error = e.message || '获取账户数据失败'
+    return false
   } finally {
     healthState.loading = false
-  }
-}
-
-function startHealthPoll(intervalMs = 30000) {
-  fetchHealth()
-  pollTimer = setInterval(fetchHealth, intervalMs)
-}
-
-function stopHealthPoll() {
-  if (pollTimer) {
-    clearInterval(pollTimer)
-    pollTimer = null
   }
 }
 
@@ -221,7 +209,7 @@ const state = reactive<WorkspaceState>({
   debounceTimer: null,
 })
 
-function schedule评估() {
+function schedulepg() {
   if (state.debounceTimer) clearTimeout(state.debounceTimer)
   state.debounceTimer = setTimeout(() => {
     state.result = calc评估(state.legs, healthState.equity, healthState.mm)
@@ -238,19 +226,17 @@ export function useRiskWorkspace() {
     // health API
     health: readonly(healthState),
     fetchHealth,
-    startHealthPoll,
-    stopHealthPoll,
     // simulation
     state: readonly(state),
     legs: readonly(state.legs),
-    addLeg: () => { state.legs.push(defaultLeg()); schedule评估() },
-    removeLeg: (id: string) => { state.legs = state.legs.filter(l => l.id !== id); schedule评估() },
+    addLeg: () => { state.legs.push(defaultLeg()); schedulepg() },
+    removeLeg: (id: string) => { state.legs = state.legs.filter(l => l.id !== id); schedulepg() },
     updateLeg: (id: string, patch: Partial<Leg>) => {
       const leg = state.legs.find(l => l.id === id)
       if (leg) Object.assign(leg, patch)
-      schedule评估()
+      schedulepg()
     },
-    resetSandbox: () => { state.legs = []; schedule评估() },
-    commitSandbox: () => schedule评估(),
+    resetSandbox: () => { state.legs = []; schedulepg() },
+    commitSandbox: () => schedulepg(),
   }
 }
