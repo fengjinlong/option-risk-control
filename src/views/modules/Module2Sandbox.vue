@@ -15,21 +15,21 @@ const selectedExpiry = ref('27JUN25')
 
 // ── 交易基因表单 ────────────────────────────────────────────────────────────────
 const geneForm = reactive({
-  baseline_equity:          0,
-  max_total_drawdown_pct:  0,
-  monthly_loss_limit:       0,
-  max_daily_drawdown_pct:  0,
-  extreme_iv_ceiling:       0,
-  extreme_iv_shift:         0,
+  baseline_equity: 0,
+  max_total_drawdown_pct: 0,
+  monthly_loss_limit: 0,
+  max_daily_drawdown_pct: 0,
+  extreme_iv_ceiling: 0,
+  extreme_iv_shift: 0,
 })
 
 const geneFields = [
-  { key: 'baseline_equity',         label: '账户净值 (USD)',    suffix: '',  step: 100,  min: 0,    decimals: 2, readonly: true  },
-  { key: 'max_total_drawdown_pct',  label: '总资产最大回撤',    suffix: '%', step: 0.5,  min: 0,    decimals: 1, readonly: false },
-  { key: 'monthly_loss_limit',       label: '月度亏损限额 (USD)', suffix: '',  step: 500,  min: 0,    decimals: 2, readonly: false },
-  { key: 'max_daily_drawdown_pct',  label: '每日最大回撤',      suffix: '%', step: 0.5,  min: 0,    decimals: 1, readonly: false },
-  { key: 'extreme_iv_ceiling',      label: '极端 IV',           suffix: '',  step: 5,    min: 0,    decimals: 1, readonly: false },
-  { key: 'extreme_iv_shift',        label: '极端 IV 波动',       suffix: '%', step: 5,    min: 0,    decimals: 1, readonly: false },
+  { key: 'baseline_equity', label: '账户净值 (USD)', suffix: '', step: 100, min: 0, decimals: 2, readonly: true },
+  { key: 'max_total_drawdown_pct', label: '总资产最大回撤', suffix: '%', step: 0.5, min: 0, decimals: 1, readonly: false },
+  { key: 'monthly_loss_limit', label: '月度亏损限额 (USD)', suffix: '', step: 500, min: 0, decimals: 2, readonly: false },
+  { key: 'max_daily_drawdown_pct', label: '每日最大回撤', suffix: '%', step: 0.5, min: 0, decimals: 1, readonly: false },
+  { key: 'extreme_iv_ceiling', label: '极端 IV', suffix: '', step: 5, min: 0, decimals: 1, readonly: false },
+  { key: 'extreme_iv_shift', label: '极端 IV 波动', suffix: '%', step: 5, min: 0, decimals: 1, readonly: false },
 ] as const
 
 const geneLoading = ref(false)
@@ -82,15 +82,9 @@ const directionStyle = (d: string) => ({
         <div v-for="field in geneFields" :key="field.key" class="gene-field">
           <label class="gene-label">{{ field.label }}</label>
           <div class="gene-input-row">
-            <el-input-number
-              v-model="(geneForm as any)[field.key]"
-              :min="field.min"
-              :step="field.step"
-              :precision="field.decimals"
-              size="small"
-              controls-position="right"
-              :disabled="geneLoading || field.readonly"
-            />
+            <el-input-number v-model="(geneForm as any)[field.key]" :min="field.min" :step="field.step"
+              :precision="field.decimals" size="small" controls-position="right"
+              :disabled="geneLoading || field.readonly" />
             <span v-if="field.suffix" class="gene-suffix">{{ field.suffix }}</span>
           </div>
         </div>
@@ -115,12 +109,7 @@ const directionStyle = (d: string) => ({
     <!-- Legs -->
     <div class="legs-container">
       <transition-group name="leg-slide" tag="div" class="legs-list">
-        <div
-          v-for="(leg, idx) in legs"
-          :key="leg.id"
-          class="leg-card"
-          :style="directionStyle(leg.direction)"
-        >
+        <div v-for="(leg, idx) in legs" :key="leg.id" class="leg-card" :style="directionStyle(leg.direction)">
           <div class="leg-header">
             <span class="leg-index">Leg {{ idx + 1 }}</span>
             <el-button size="small" type="danger" plain circle @click="removeLeg(leg.id)">
@@ -131,11 +120,8 @@ const directionStyle = (d: string) => ({
           <!-- Direction -->
           <div class="leg-row">
             <span class="leg-label">方向</span>
-            <el-radio-group
-              :model-value="leg.direction"
-              size="small"
-              @update:model-value="updateLeg(leg.id, { direction: $event })"
-            >
+            <el-radio-group :model-value="leg.direction" size="small"
+              @update:model-value="updateLeg(leg.id, { direction: $event })">
               <el-radio-button value="buy">
                 <span class="dir-text buy">🟢 Buy</span>
               </el-radio-button>
@@ -148,11 +134,8 @@ const directionStyle = (d: string) => ({
           <!-- Type -->
           <div class="leg-row">
             <span class="leg-label">类型</span>
-            <el-radio-group
-              :model-value="leg.type"
-              size="small"
-              @update:model-value="updateLeg(leg.id, { type: $event })"
-            >
+            <el-radio-group :model-value="leg.type" size="small"
+              @update:model-value="updateLeg(leg.id, { type: $event })">
               <el-radio-button value="call">Call</el-radio-button>
               <el-radio-button value="put">Put</el-radio-button>
             </el-radio-group>
@@ -161,27 +144,13 @@ const directionStyle = (d: string) => ({
           <!-- Strike + Size -->
           <div class="leg-row">
             <span class="leg-label">Strike</span>
-            <el-input-number
-              :model-value="leg.strike"
-              size="small"
-              :min="1000"
-              :max="200000"
-              :step="500"
-              :precision="0"
-              @update:model-value="updateLeg(leg.id, { strike: $event as number })"
-            />
+            <el-input-number :model-value="leg.strike" size="small" :min="1000" :max="200000" :step="500" :precision="0"
+              @update:model-value="updateLeg(leg.id, { strike: $event as number })" />
           </div>
           <div class="leg-row">
             <span class="leg-label">Size</span>
-            <el-input-number
-              :model-value="leg.size"
-              size="small"
-              :min="0.1"
-              :max="100"
-              :step="0.1"
-              :precision="1"
-              @update:model-value="updateLeg(leg.id, { size: $event as number })"
-            />
+            <el-input-number :model-value="leg.size" size="small" :min="0.1" :max="100" :step="0.1" :precision="1"
+              @update:model-value="updateLeg(leg.id, { size: $event as number })" />
           </div>
 
           <!-- IV hint -->
@@ -359,8 +328,13 @@ const directionStyle = (d: string) => ({
   font-size: 12px;
 }
 
-.dir-text.buy  { color: #52c41a; }
-.dir-text.sell { color: #ff4d4f; }
+.dir-text.buy {
+  color: #52c41a;
+}
+
+.dir-text.sell {
+  color: #ff4d4f;
+}
 
 .iv-hint {
   font-size: 10px;
