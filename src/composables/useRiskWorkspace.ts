@@ -209,6 +209,27 @@ async function fetchPrices() {
   }
 }
 
+// ── positions / Greeks state ──────────────────────────────────────────────────
+interface PositionsState {
+  loading: boolean
+  data: import('../types/account').EthOptionsResponse | null
+}
+
+const positionsState = reactive<PositionsState>({
+  loading: false,
+  data: null,
+})
+
+async function fetchPositions() {
+  positionsState.loading = true
+  try {
+    const res = await request.get<import('../types/account').EthOptionsResponse>('/api/v1/positions/eth-options')
+    positionsState.data = res as unknown as import('../types/account').EthOptionsResponse
+  } finally {
+    positionsState.loading = false
+  }
+}
+
 // ── sandbox simulation state ────────────────────────────────────────────────
 interface WorkspaceState {
   delta: number
@@ -250,6 +271,9 @@ export function useRiskWorkspace() {
     // prices API
     prices: readonly(pricesState),
     fetchPrices,
+    // positions API
+    positions: readonly(positionsState),
+    fetchPositions,
     // simulation
     state: readonly(state),
     legs: readonly(state.legs),

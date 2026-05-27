@@ -20,3 +20,34 @@ export interface ApiResponse<T> {
   data?: T
   message?: string
 }
+
+export interface EthOptionsResponse {
+  status: string
+  asset: string
+  total_count: number
+  greeks_summary: {
+    total_net_delta: number
+    total_net_gamma: number
+    total_net_vega: number
+    total_net_theta: number
+  }
+  greeks_thresholds: {
+    delta_limit: number
+    gamma_limit: number
+    vega_limit: number
+    theta_limit: number
+  }
+  data: {
+    name: string
+    side: 'Buy' | 'Sell'
+    size: number
+    entry_price: number
+    current_price: number
+    pnl: number
+    dte: number
+    net_delta: number
+    net_gamma: number
+    net_vega: number
+    net_theta: number
+  }[]
+}

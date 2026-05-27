@@ -2,9 +2,12 @@
 import { onMounted, computed } from 'vue'
 import { useRiskWorkspace } from '../../composables/useRiskWorkspace'
 
-const { health, fetchHealth, state } = useRiskWorkspace()
+const { health, positions, fetchHealth, fetchPositions } = useRiskWorkspace()
 
-onMounted(() => fetchHealth())
+onMounted(() => {
+  fetchHealth()
+  fetchPositions()
+})
 
 // ── risk config ──────────────────────────────────────────────────────────────
 const riskConfig = computed(() => {
@@ -18,45 +21,21 @@ const riskConfig = computed(() => {
   return map[r] ?? map.SAFE
 })
 
-// ── Greeks 阈值（根据接口补充后可改为动态） ─────────────────────────────────────
-const GREEK_THRESHOLDS = {
-  delta: 1.0,
-  gamma: 0.1,
-  vega: 5.0,
-  theta: 2.0,
-}
+// ── Greeks from API ─────────────────────────────────────────────────────────
+const greeksSummary = computed(() => positions.data?.greeks_summary ?? null)
+const greeksThresholds = computed(() => positions.data?.greeks_thresholds ?? null)
 
-// ── Greeks rows ─────────────────────────────────────────────────────────────
-const greekRows = computed(() => [
-  {
-    label: 'Delta',
-    val: state.delta,
-    threshold: GREEK_THRESHOLDS.delta,
-    unit: '',
-    format: (v: number) => v.toFixed(3),
-  },
-  {
-    label: 'Gamma',
-    val: state.gamma,
-    threshold: GREEK_THRESHOLDS.gamma,
-    unit: '',
-    format: (v: number) => v.toFixed(4),
-  },
-  {
-    label: 'Vega',
-    val: state.vega,
-    threshold: GREEK_THRESHOLDS.vega,
-    unit: 'BTC/%',
-    format: (v: number) => v.toFixed(2),
-  },
-  {
-    label: 'Theta',
-    val: state.theta,
-    threshold: GREEK_THRESHOLDS.theta,
-    unit: 'BTC/day',
-    format: (v: number) => v.toFixed(2),
-  },
-])
+const greekRows = computed(() => {
+  const s = greeksSummary.value
+  const t = greeksThresholds.value
+  if (!s || !t) return []
+  return [
+    { label: 'Delta', val: s.total_net_delta, threshold: t.delta_limit, unit: '' },
+    { label: 'Gamma', val: s.total_net_gamma, threshold: t.gamma_limit, unit: '' },
+    { label: 'Vega',  val: s.total_net_vega,  threshold: t.vega_limit,  unit: '/%' },
+    { label: 'Theta', val: s.total_net_theta, threshold: t.theta_limit, unit: '/day' },
+  ]
+})
 
 function barPercent(val: number, threshold: number): number {
   return Math.min(Math.abs(val / threshold) * 100, 100)
@@ -66,68 +45,32 @@ function barColor(val: number, threshold: number): string {
   return Math.abs(val / threshold) >= 0.7 ? '#ff4d4f' : '#52c41a'
 }
 
-// ── 现有仓位（mock 数据，接口接入后替换） ───────────────────────────────────────
-interface Position {
-  name: string
-  direction: 'buy' | 'sell'
-  size: number
-  entryPrice: number
-  currentPrice: number
-  pnl: number
-  delta: number
-  gamma: number
-  vega: number
-  theta: number
-  dte: number
+function fmt(val: number, decimals: number): string {
+  return val.toFixed(decimals)
 }
 
-const mockPositions: Position[] = [
-  {
-    name: 'BTC-27JUN25-65000-C',
-    direction: 'buy',
-    size: 1,
-    entryPrice: 1250.5,
-    currentPrice: 1380.2,
-    pnl: 129.7,
-    delta: 0.45,
-    gamma: 0.003,
-    vega: 0.82,
-    theta: -0.12,
-    dte: 5,
-  },
-  {
-    name: 'BTC-27JUN25-64000-P',
-    direction: 'sell',
-    size: 2,
-    entryPrice: 980.0,
-    currentPrice: 910.5,
-    pnl: 139.0,
-    delta: -0.22,
-    gamma: 0.002,
-    vega: 0.65,
-    theta: 0.08,
-    dte: 5,
-  },
-]
+// ── Positions ─────────────────────────────────────────────────────────────────
+const positionsList = computed(() => positions.data?.data ?? [])
 
 const positionCols = [
-  { label: '名称', key: 'name' },
-  { label: '方向', key: 'direction' },
-  { label: '数量', key: 'size' },
-  { label: '入场价', key: 'entryPrice' },
-  { label: '当前价', key: 'currentPrice' },
-  { label: 'P&L', key: 'pnl' },
-  { label: 'Delta', key: 'delta' },
-  { label: 'Gamma', key: 'gamma' },
-  { label: 'Vega', key: 'vega' },
-  { label: 'Theta', key: 'theta' },
-  { label: 'DTE', key: 'dte' },
+  { label: '名称',     key: 'name'         },
+  { label: '方向',     key: 'side'         },
+  { label: '数量',     key: 'size'         },
+  { label: '入场价',   key: 'entry_price'  },
+  { label: '当前价',   key: 'current_price'},
+  { label: 'P&L',     key: 'pnl'          },
+  { label: 'Delta',    key: 'net_delta'    },
+  { label: 'Gamma',    key: 'net_gamma'    },
+  { label: 'Vega',     key: 'net_vega'     },
+  { label: 'Theta',    key: 'net_theta'    },
+  { label: 'DTE',      key: 'dte'          },
 ]
 
-function cellVal(pos: Position, key: string): string {
-  const v = (pos as any)[key]
-  if (key === 'direction') return v === 'buy' ? '买入' : '卖出'
-  if (key === 'pnl') return `${v >= 0 ? '+' : ''}${v.toFixed(2)}`
+function cellVal(pos: any, key: string): string {
+  const v = pos[key]
+  if (key === 'side')      return v === 'Buy' ? '买入' : '卖出'
+  if (key === 'pnl')       return `${v >= 0 ? '+' : ''}${v.toFixed(2)}`
+  if (['net_delta','net_gamma','net_vega','net_theta'].includes(key)) return v.toFixed(4)
   if (typeof v === 'number') return v.toFixed(2)
   return String(v)
 }
@@ -212,7 +155,11 @@ function cellVal(pos: Position, key: string): string {
       <!-- Greeks -->
       <div class="card" :style="{ borderLeftColor: riskConfig.border }">
         <div class="card-title">现有 Greeks 暴露</div>
-        <div class="greek-list">
+        <div v-if="positions.loading && !greeksSummary" class="pos-loading">
+          <el-skeleton :rows="2" animated />
+        </div>
+        <div v-else-if="!greeksSummary" class="pos-empty-text">暂无 Greeks 数据</div>
+        <div v-else class="greek-list">
           <div
             v-for="row in greekRows"
             :key="row.label"
@@ -221,9 +168,9 @@ function cellVal(pos: Position, key: string): string {
             <div class="greek-header">
               <span class="greek-label">{{ row.label }}</span>
               <span class="greek-values">
-                <span class="greek-val">{{ row.format(row.val) }}</span>
+                <span class="greek-val">{{ fmt(row.val, 4) }}</span>
                 <span class="greek-sep"> / </span>
-                <span class="greek-threshold">{{ row.threshold }}</span>
+                <span class="greek-threshold">{{ fmt(row.threshold, 4) }}</span>
                 <span class="greek-unit">{{ row.unit }}</span>
               </span>
             </div>
@@ -243,7 +190,11 @@ function cellVal(pos: Position, key: string): string {
       <!-- 现有仓位 -->
       <div class="card" :style="{ borderLeftColor: riskConfig.border }">
         <div class="card-title">现有仓位</div>
-        <div class="pos-wrap">
+        <div v-if="positions.loading && positionsList.length === 0" class="pos-loading">
+          <el-skeleton :rows="2" animated />
+        </div>
+        <div v-else-if="positionsList.length === 0" class="pos-empty-text">暂无仓位</div>
+        <div v-else class="pos-wrap">
           <table class="pos-table">
             <thead>
               <tr>
@@ -251,21 +202,18 @@ function cellVal(pos: Position, key: string): string {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(pos, idx) in mockPositions" :key="idx">
+              <tr v-for="(pos, idx) in positionsList" :key="idx">
                 <td
                   v-for="col in positionCols"
                   :key="col.key"
                   :class="[
                     'pos-td',
-                    col.key === 'direction' ? (pos.direction === 'buy' ? 'dir-buy' : 'dir-sell') : '',
+                    col.key === 'side' ? (pos.side === 'Buy' ? 'dir-buy' : 'dir-sell') : '',
                     col.key === 'pnl' ? (pos.pnl >= 0 ? 'pnl-pos' : 'pnl-neg') : '',
                   ]"
                 >
                   {{ cellVal(pos, col.key) }}
                 </td>
-              </tr>
-              <tr v-if="mockPositions.length === 0">
-                <td :colspan="positionCols.length" class="pos-empty">暂无仓位</td>
               </tr>
             </tbody>
           </table>
@@ -471,6 +419,17 @@ function cellVal(pos: Position, key: string): string {
 }
 
 /* ── Positions ── */
+.pos-loading,
+.pos-empty-text {
+  padding: 8px 0;
+}
+
+.pos-empty-text {
+  font-size: 12px;
+  color: var(--el-text-color-disabled);
+  text-align: center;
+}
+
 .pos-wrap {
   overflow-x: auto;
 }
@@ -515,13 +474,6 @@ function cellVal(pos: Position, key: string): string {
 .pos-td.dir-sell { color: #ff4d4f; font-weight: 600; }
 .pos-td.pnl-pos  { color: #52c41a; }
 .pos-td.pnl-neg  { color: #ff4d4f; }
-
-.pos-empty {
-  text-align: center;
-  color: var(--el-text-color-disabled);
-  padding: 20px;
-  font-size: 12px;
-}
 
 .empty-hint {
   display: flex;
