@@ -188,6 +188,27 @@ async function fetchHealth(): Promise<boolean> {
   }
 }
 
+// ── market prices state ────────────────────────────────────────────────────────
+interface PricesState {
+  loading: boolean
+  data: Record<string, number>
+}
+
+const pricesState = reactive<PricesState>({
+  loading: false,
+  data: {},
+})
+
+async function fetchPrices() {
+  pricesState.loading = true
+  try {
+    const res = await request.get<{ BTC: number; CRV: number; ETH: number; LINK: number; SOL: number }>('/api/v1/market/prices')
+    pricesState.data = res as unknown as Record<string, number>
+  } finally {
+    pricesState.loading = false
+  }
+}
+
 // ── sandbox simulation state ────────────────────────────────────────────────
 interface WorkspaceState {
   delta: number
@@ -226,6 +247,9 @@ export function useRiskWorkspace() {
     // health API
     health: readonly(healthState),
     fetchHealth,
+    // prices API
+    prices: readonly(pricesState),
+    fetchPrices,
     // simulation
     state: readonly(state),
     legs: readonly(state.legs),

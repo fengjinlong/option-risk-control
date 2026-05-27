@@ -5,9 +5,12 @@ import Module2Sandbox from './modules/Module2Sandbox.vue'
 import Module3Evaluation from './modules/Module3Evaluation.vue'
 import { useRiskWorkspace } from '../composables/useRiskWorkspace'
 
-const { fetchHealth } = useRiskWorkspace()
+const { health, prices, fetchHealth, fetchPrices } = useRiskWorkspace()
 
-onMounted(() => fetchHealth())
+onMounted(() => {
+  fetchHealth()
+  fetchPrices()
+})
 </script>
 
 <template>
@@ -18,7 +21,13 @@ onMounted(() => fetchHealth())
         <span class="title">Pre-trade Risk Workspace</span>
       </div>
       <div class="header-right">
-        <el-tag type="info" size="small">BTC-PERP</el-tag>
+        <!-- {{ prices.data.data }} -->
+        <!-- 价格模块 -->
+        <el-tag type="success" size="small">BTC: {{ prices.data.data.BTC ?? '--' }}</el-tag>
+        <el-tag type="success" size="small">ETH: {{ prices.data.data.ETH ?? '--' }}</el-tag>
+        <el-tag type="success" size="small">SOL: {{ prices.data.data.SOL ?? '--' }}</el-tag>
+        <el-tag type="success" size="small">LINK: {{ prices.data.data.LINK ?? '--' }}</el-tag>
+        <el-tag type="success" size="small">CRV: {{ prices.data.data.CRV ?? '--' }}</el-tag>
         <el-tag type="success" size="small">● LIVE</el-tag>
       </div>
     </header>
