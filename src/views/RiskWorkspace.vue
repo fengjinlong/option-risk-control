@@ -1,7 +1,14 @@
 <script setup lang="ts">
+import { onMounted, onUnmounted } from 'vue'
 import Module1Context from './modules/Module1Context.vue'
 import Module2Sandbox from './modules/Module2Sandbox.vue'
 import Module3Evaluation from './modules/Module3Evaluation.vue'
+import { useRiskWorkspace } from '../composables/useRiskWorkspace'
+
+const { startHealthPoll, stopHealthPoll } = useRiskWorkspace()
+
+onMounted(() => startHealthPoll(30000))
+onUnmounted(() => stopHealthPoll())
 </script>
 
 <template>
@@ -40,8 +47,8 @@ import Module3Evaluation from './modules/Module3Evaluation.vue'
 .workspace {
   display: flex;
   flex-direction: column;
-  /* height: 100vh; */
-  /* overflow: hidden; */
+  height: 100vh;
+  overflow: hidden;
   background: var(--el-bg-color);
 }
 

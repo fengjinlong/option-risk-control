@@ -1,25 +1,28 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { onMounted, onUnmounted, computed } from 'vue'
 import { useRiskWorkspace } from '../../composables/useRiskWorkspace'
-// import { useRiskWorkspace } from '../composables/useRiskWorkspace'
 
-const { state } = useRiskWorkspace()
+const { health, state, startHealthPoll, stopHealthPoll } = useRiskWorkspace()
 
-const mmRatio = computed(() =>
-  parseFloat(((state.mm / state.equity) * 100).toFixed(2))
-)
+onMounted(() => startHealthPoll(30000))
+onUnmounted(() => stopHealthPoll())
 
-const healthColor = computed(() => {
-  const r = mmRatio.value
-  if (r < 50) return '#52c41a'
-  if (r < 80) return '#faad14'
-  return '#ff4d4f'
+// Card border & dot color driven by risk level
+const riskConfig = computed(() => {
+  const map: Record<string, { border: string; dot: string; label: string; type: string }> = {
+    SAFE:        { border: '#52c41a', dot: '#52c41a', label: 'SAFE',        type: 'success' },
+    ATTENTION:   { border: '#faad14', dot: '#faad14', label: 'ATTENTION',  type: 'warning' },
+    HIGH_RISK:   { border: '#fa8c16', dot: '#fa8c16', label: 'HIGH_RISK',  type: 'warning' },
+    CRITICAL:    { border: '#ff4d4f', dot: '#ff4d4f', label: 'CRITICAL',  type: 'danger' },
+  }
+  const r = health.riskLevel || 'SAFE'
+  return map[r] ?? map.SAFE
 })
 
 const greekRows = computed(() => [
   { label: 'Delta', val: state.delta, unit: '' },
   { label: 'Gamma', val: state.gamma, unit: '' },
-  { label: 'Vega', val: state.vega, unit: 'BTC/%' },
+  { label: 'Vega',  val: state.vega,  unit: 'BTC/%' },
   { label: 'Theta', val: state.theta, unit: 'BTC/day' },
 ])
 </script>
@@ -27,64 +30,95 @@ const greekRows = computed(() => [
 <template>
   <div class="module1">
     <div class="section-title">
-      <span class="dot green"></span>
+      <span class="dot" :style="{ background: riskConfig.dot }"></span>
       Account Context
     </div>
 
-    <!-- Health -->
-    <div class="card">
-      <div class="card-title">资金健康度</div>
-      <div class="metric-grid">
-        <div class="metric">
-          <span class="metric-label">Equity</span>
-          <span class="metric-value accent">{{ state.equity }} BTC</span>
-        </div>
-        <div class="metric">
-          <span class="metric-label">MM</span>
-          <span class="metric-value warn">{{ state.mm }} BTC</span>
-        </div>
-        <div class="metric">
-          <span class="metric-label">IM</span>
-          <span class="metric-value">{{ state.im }} BTC</span>
-        </div>
-      </div>
-      <div class="progress-block">
-        <div class="progress-label">
-          <span>MM / Equity</span>
-          <span :style="{ color: healthColor }">{{ mmRatio }}%</span>
-        </div>
-        <el-progress :percentage="Math.min(mmRatio, 100)" :color="healthColor" :show-text="false" :stroke-width="6" />
-      </div>
+    <!-- Loading -->
+    <div v-if="health.loading && !health.data" class="skeleton-card">
+      <el-skeleton :rows="3" animated />
     </div>
 
-    <!-- Greeks -->
-    <div class="card">
-      <div class="card-title">现有 Greeks 暴露</div>
-      <div class="greek-list">
-        <div v-for="row in greekRows" :key="row.label" class="greek-row">
-          <span class="greek-label">{{ row.label }}</span>
-          <span class="greek-val">{{ row.val.toFixed(3) }} {{ row.unit }}</span>
-        </div>
-      </div>
-    </div>
+    <!-- Error -->
+    <el-alert
+      v-else-if="health.error"
+      :title="health.error"
+      type="error"
+      show-icon
+      :closable="false"
+      class="error-alert"
+    />
 
-    <!-- IV Context -->
-    <div class="card">
-      <div class="card-title">IV 环境基准</div>
-      <div class="iv-grid">
-        <div class="iv-item">
-          <span class="iv-label">DVol</span>
-          <el-tag size="small" type="info">{{ state.dvol }}</el-tag>
+    <template v-else-if="health.data">
+      <!-- Risk Level Banner -->
+      <div
+        class="risk-banner"
+        :style="{ borderColor: riskConfig.border, color: riskConfig.border }"
+      >
+        <span class="risk-dot" :style="{ background: riskConfig.dot }"></span>
+        <span class="risk-label">{{ riskConfig.label }}</span>
+        <el-tag :type="riskConfig.type as any" size="small" class="env-tag">
+          {{ health.data.environment }}
+        </el-tag>
+      </div>
+
+      <!-- Health -->
+      <div class="card" :style="{ borderLeftColor: riskConfig.border }">
+        <div class="card-title">资金健康度</div>
+        <div class="metric-grid">
+          <div class="metric">
+            <span class="metric-label">Equity (USD)</span>
+            <span class="metric-value accent">${{ health.equity.toLocaleString() }}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">MM (USD)</span>
+            <span class="metric-value warn">${{ health.mm.toLocaleString() }}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">IM (USD)</span>
+            <span class="metric-value">${{ health.im.toLocaleString() }}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">可用 (USD)</span>
+            <span class="metric-value safe">${{ health.available.toLocaleString() }}</span>
+          </div>
         </div>
-        <div class="iv-item">
-          <span class="iv-label">IV Rank</span>
-          <el-tag size="small">{{ state.ivRank }}</el-tag>
-        </div>
-        <div class="iv-item">
-          <span class="iv-label">25d Skew</span>
-          <el-tag size="small" type="warning">{{ state.skew25d }}</el-tag>
+
+        <!-- Margin Utilization — core risk bar -->
+        <div class="progress-block">
+          <div class="progress-label">
+            <span>保证金利用率</span>
+            <span :style="{ color: riskConfig.border }">{{ health.marginUtilization }}%</span>
+          </div>
+          <el-progress
+            :percentage="Math.min(health.marginUtilization, 100)"
+            :color="riskConfig.border"
+            :show-text="false"
+            :stroke-width="8"
+          />
+          <div class="progress-sub">
+            <span>IM 占用率 {{ health.initialMarginRate }}%</span>
+            <span>保证金余额 ${{ health.marginBalance.toLocaleString() }}</span>
+          </div>
         </div>
       </div>
+
+      <!-- Greeks -->
+      <div class="card" :style="{ borderLeftColor: riskConfig.border }">
+        <div class="card-title">现有 Greeks 暴露</div>
+        <div class="greek-list">
+          <div v-for="row in greekRows" :key="row.label" class="greek-row">
+            <span class="greek-label">{{ row.label }}</span>
+            <span class="greek-val">{{ row.val.toFixed(3) }} {{ row.unit }}</span>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- No data yet -->
+    <div v-else class="empty-hint">
+      <el-icon><el-icon-loading /></el-icon>
+      <span>正在连接账户数据...</span>
     </div>
   </div>
 </template>
@@ -94,7 +128,6 @@ const greekRows = computed(() => [
   display: flex;
   flex-direction: column;
   gap: 10px;
-  /* height: 100%; */
   overflow-y: auto;
   padding: 8px;
 }
@@ -118,21 +151,45 @@ const greekRows = computed(() => [
   display: inline-block;
 }
 
-.dot.green {
-  background: #52c41a;
+.skeleton-card {
+  background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color);
+  border-radius: 8px;
+  padding: 12px;
 }
 
-.dot.orange {
-  background: #faad14;
+.error-alert { border-radius: 8px; }
+
+.risk-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1.5px solid;
+  border-radius: 8px;
+  background: transparent;
 }
 
-.dot.red {
-  background: #ff4d4f;
+.risk-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
+
+.risk-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  flex: 1;
+}
+
+.env-tag { margin-left: auto; }
 
 .card {
   background: var(--el-fill-color-light);
   border: 1px solid var(--el-border-color);
+  border-left: 3px solid;
   border-radius: 8px;
   padding: 12px;
 }
@@ -148,9 +205,9 @@ const greekRows = computed(() => [
 
 .metric-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 6px;
-  margin-bottom: 10px;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .metric {
@@ -171,17 +228,11 @@ const greekRows = computed(() => [
   font-family: 'JetBrains Mono', monospace;
 }
 
-.metric-value.accent {
-  color: var(--el-color-primary);
-}
+.metric-value.accent { color: var(--el-color-primary); }
+.metric-value.warn   { color: #faad14; }
+.metric-value.safe   { color: #52c41a; }
 
-.metric-value.warn {
-  color: #faad14;
-}
-
-.progress-block {
-  margin-top: 4px;
-}
+.progress-block { margin-top: 4px; }
 
 .progress-label {
   display: flex;
@@ -189,6 +240,14 @@ const greekRows = computed(() => [
   font-size: 10px;
   color: var(--el-text-color-secondary);
   margin-bottom: 4px;
+}
+
+.progress-sub {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--el-text-color-disabled);
+  margin-top: 3px;
 }
 
 .greek-list {
@@ -204,9 +263,7 @@ const greekRows = computed(() => [
   font-size: 12px;
 }
 
-.greek-label {
-  color: var(--el-text-color-secondary);
-}
+.greek-label { color: var(--el-text-color-secondary); }
 
 .greek-val {
   font-family: 'JetBrains Mono', monospace;
@@ -215,20 +272,13 @@ const greekRows = computed(() => [
   font-weight: 600;
 }
 
-.iv-grid {
+.empty-hint {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.iv-item {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  font-size: 12px;
-}
-
-.iv-label {
+  gap: 8px;
+  justify-content: center;
+  padding: 24px;
   color: var(--el-text-color-secondary);
+  font-size: 12px;
 }
 </style>

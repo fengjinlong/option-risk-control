@@ -2,17 +2,17 @@
 import { computed } from 'vue'
 import { useRiskWorkspace, type HeatCell } from '../../composables/useRiskWorkspace'
 
-const { state } = useRiskWorkspace()
+const { health, state } = useRiskWorkspace()
 
 const PRICE_PCTS = [-20, -15, -10, -5, 0, 5, 10, 15, 20]
 const IV_PCTS = [-10, -5, 0, 5, 10, 15, 20]
 
 const mmArrow = computed(() => {
-  const before = state.mm
-  const after = state.result.mmAfter
+  const before = health.mm
+  const after = health.mm + state.result.mmDelta
   const diff = after - before
   const sign = diff >= 0 ? '+' : ''
-  return { before: before.toFixed(3), after: after.toFixed(3), diff: `${sign}${diff.toFixed(3)}` }
+  return { before: before.toFixed(2), after: after.toFixed(2), diff: `${sign}${diff.toFixed(2)}` }
 })
 
 const greekRows = computed(() => [
@@ -39,11 +39,11 @@ const greekRows = computed(() => [
 ])
 
 const mmRatio = computed(() =>
-  parseFloat(((state.result.mmAfter / state.equity) * 100).toFixed(2))
+  parseFloat(((state.result.mmDelta / health.equity) * 100).toFixed(2))
 )
 
 function cellStyle(cell: HeatCell): Record<string, string> {
-  const ratio = cell.mm / state.equity
+  const ratio = cell.mm / health.equity
   if (cell.liquidated) {
     return {
       background: '#7f1d1d',
@@ -64,7 +64,7 @@ function cellStyle(cell: HeatCell): Record<string, string> {
 
 function cellText(cell: HeatCell): string {
   if (cell.liquidated) return `❌ 爆仓`
-  return `${cell.mm.toFixed(3)} BTC`
+  return `$${cell.mm.toFixed(2)}`
 }
 
 const totalCells = computed(() => state.result.heatMatrix.length)
@@ -96,6 +96,21 @@ const alertMsg = computed(() => {
       Risk Evaluation Engine
     </div>
 
+    <!-- Loading -->
+    <div v-if="health.loading && !health.data" class="skeleton-card">
+      <el-skeleton :rows="2" animated />
+    </div>
+
+    <!-- Error -->
+    <el-alert
+      v-else-if="health.error"
+      :title="health.error"
+      type="error"
+      show-icon
+      :closable="false"
+    />
+
+    <template v-else-if="health.data">
     <!-- MM Evolution -->
     <div class="card">
       <div class="card-title">边际保证金变动</div>
@@ -168,8 +183,13 @@ const alertMsg = computed(() => {
     </div>
 
     <!-- Alert -->
-    <el-alert :title="alertMsg" :type="isHighRisk ? 'error' : isWarning ? 'warning' : 'success'" show-icon
-      :closable="false" />
+    <el-alert
+      :title="alertMsg"
+      :type="isHighRisk ? 'error' : isWarning ? 'warning' : 'success'"
+      show-icon
+      :closable="false"
+    />
+    </template>
   </div>
 </template>
 

@@ -1,0 +1,22 @@
+import axios from 'axios'
+import { ElMessage } from 'element-plus'
+
+const request = axios.create({
+  baseURL: 'http://127.0.0.1:8000',
+  timeout: 10000,
+})
+
+request.interceptors.request.use(
+  (config) => config,
+  (error) => Promise.reject(error)
+)
+
+request.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    ElMessage.error(error.response?.data?.message || error.message || '请求失败')
+    return Promise.reject(error)
+  }
+)
+
+export default request

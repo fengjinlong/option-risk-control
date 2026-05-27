@@ -1,5 +1,8 @@
 import { reactive, readonly } from 'vue'
+import request from '../utils/request'
+import type { AccountHealth } from '../types/account'
 
+// ── types ────────────────────────────────────────────────────────────────────
 export type LegDirection = 'buy' | 'sell'
 export type LegType = 'call' | 'put'
 
@@ -33,24 +36,18 @@ export interface HeatCell {
 }
 
 export interface Risk评估Result {
-  mmAfter: number
   mmDelta: number
   greeks: GreeksComparison
   heatMatrix: HeatCell[]
 }
 
-const ACCOUNT = {
-  equity: 12.45,
-  mm: 1.45,
-  im: 2.1,
+// ── mock Greeks (sandbox simulation uses real API equity for liquidation) ─────
+const MOCK_GREEKS = {
   delta: -0.38,
   gamma: 0.021,
   vega: 2.14,
   theta: -0.87,
-  dvol: 82.5,
-  ivRank: 54.2,
-  skew25d: -3.1,
-} as const
+}
 
 const defaultLeg = (): Leg => ({
   id: crypto.randomUUID(),
@@ -83,26 +80,8 @@ function calcLegGreeks(leg: Leg) {
   }
 }
 
-function calcHeatMatrix(_legs: Leg[], mmDelta: number): HeatCell[] {
-  const cells: HeatCell[] = []
-  for (const pricePct of [-20, -15, -10, -5, 0, 5, 10, 15, 20]) {
-    for (const ivPct of [-10, -5, 0, 5, 10, 15, 20]) {
-      const scaleFactor = 1 + pricePct * 0.008 + ivPct * 0.003
-      const mm = ACCOUNT.mm + mmDelta * scaleFactor
-      cells.push({
-        pricePct,
-        ivPct,
-        mm: parseFloat(mm.toFixed(4)),
-        liquidated: mm > ACCOUNT.equity,
-      })
-    }
-  }
-  return cells
-}
-
-function calc评估(legs: Leg[]): Risk评估Result {
+function calc评估(legs: Leg[], equity: number, mm: number): Risk评估Result {
   const mmDelta = legs.reduce((s, l) => s + calcLegMM(l), 0)
-  const mmAfter = ACCOUNT.mm + mmDelta
 
   const ng = legs.reduce(
     (acc, l) => {
@@ -117,67 +96,153 @@ function calc评估(legs: Leg[]): Risk评估Result {
     { delta: 0, gamma: 0, vega: 0, theta: 0 }
   )
 
+  const heatMatrix: HeatCell[] = []
+  for (const pricePct of [-20, -15, -10, -5, 0, 5, 10, 15, 20]) {
+    for (const ivPct of [-10, -5, 0, 5, 10, 15, 20]) {
+      const scaleFactor = 1 + pricePct * 0.008 + ivPct * 0.003
+      const cellMM = mmDelta * scaleFactor
+      const totalMM = mm + cellMM
+      heatMatrix.push({
+        pricePct,
+        ivPct,
+        mm: parseFloat(cellMM.toFixed(4)),
+        liquidated: equity > 0 && totalMM > equity,
+      })
+    }
+  }
+
   return {
-    mmAfter: parseFloat(mmAfter.toFixed(4)),
     mmDelta: parseFloat(mmDelta.toFixed(4)),
     greeks: {
-      delta: ACCOUNT.delta,
-      gamma: ACCOUNT.gamma,
-      vega: ACCOUNT.vega,
-      theta: ACCOUNT.theta,
-      deltaNew: ACCOUNT.delta + ng.delta,
-      gammaNew: ACCOUNT.gamma + ng.gamma,
-      vegaNew: ACCOUNT.vega + ng.vega,
-      thetaNew: ACCOUNT.theta + ng.theta,
+      delta: MOCK_GREEKS.delta,
+      gamma: MOCK_GREEKS.gamma,
+      vega: MOCK_GREEKS.vega,
+      theta: MOCK_GREEKS.theta,
+      deltaNew: MOCK_GREEKS.delta + ng.delta,
+      gammaNew: MOCK_GREEKS.gamma + ng.gamma,
+      vegaNew: MOCK_GREEKS.vega + ng.vega,
+      thetaNew: MOCK_GREEKS.theta + ng.theta,
     },
-    heatMatrix: calcHeatMatrix(legs, mmDelta),
+    heatMatrix,
   }
 }
 
-// ── flat state (fields at top level for easy access) ─────────────────────
-interface WorkspaceState {
+// ── health API state ────────────────────────────────────────────────────────
+interface HealthState {
+  loading: boolean
+  error: string | null
+  data: AccountHealth | null
   equity: number
   mm: number
   im: number
+  available: number
+  marginBalance: number
+  marginUtilization: number
+  initialMarginRate: number
+  riskLevel: 'SAFE' | 'ATTENTION' | 'HIGH_RISK' | 'CRITICAL' | ''
+}
+
+const healthState = reactive<HealthState>({
+  loading: false,
+  error: null,
+  data: null,
+  equity: 0,
+  mm: 0,
+  im: 0,
+  available: 0,
+  marginBalance: 0,
+  marginUtilization: 0,
+  initialMarginRate: 0,
+  riskLevel: '',
+})
+
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+function round2(v: number): number {
+  return Math.round(v * 100) / 100
+}
+
+async function fetchHealth() {
+  healthState.loading = true
+  healthState.error = null
+  try {
+    const res = await request.get<AccountHealth>('/api/v1/account/health')
+    const h = res as unknown as AccountHealth
+    if (h.status !== 'success') {
+      healthState.error = h.status
+      return
+    }
+    healthState.data = h
+    healthState.equity = round2(h.metrics.total_equity_usd)
+    healthState.mm = round2(h.metrics.maintenance_margin_usd)
+    healthState.im = round2(h.metrics.initial_margin_usd)
+    healthState.available = round2(h.metrics.total_available_balance_usd)
+    healthState.marginBalance = round2(h.metrics.total_margin_balance_usd)
+    healthState.marginUtilization = round2(h.metrics.margin_utilization_rate)
+    healthState.initialMarginRate = round2(h.metrics.initial_margin_rate)
+    healthState.riskLevel = h.risk_level
+  } catch (e: any) {
+    healthState.error = e.message || '获取账户数据失败'
+  } finally {
+    healthState.loading = false
+  }
+}
+
+function startHealthPoll(intervalMs = 30000) {
+  fetchHealth()
+  pollTimer = setInterval(fetchHealth, intervalMs)
+}
+
+function stopHealthPoll() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+// ── sandbox simulation state ────────────────────────────────────────────────
+interface WorkspaceState {
   delta: number
   gamma: number
   vega: number
   theta: number
-  dvol: number
-  ivRank: number
-  skew25d: number
   legs: Leg[]
   result: Risk评估Result
   debounceTimer: ReturnType<typeof setTimeout> | null
 }
 
 const state = reactive<WorkspaceState>({
-  equity: ACCOUNT.equity,
-  mm: ACCOUNT.mm,
-  im: ACCOUNT.im,
-  delta: ACCOUNT.delta,
-  gamma: ACCOUNT.gamma,
-  vega: ACCOUNT.vega,
-  theta: ACCOUNT.theta,
-  dvol: ACCOUNT.dvol,
-  ivRank: ACCOUNT.ivRank,
-  skew25d: ACCOUNT.skew25d,
+  delta: MOCK_GREEKS.delta,
+  gamma: MOCK_GREEKS.gamma,
+  vega: MOCK_GREEKS.vega,
+  theta: MOCK_GREEKS.theta,
   legs: [],
-  result: calc评估([]),
+  result: calc评估([], 0, 0),
   debounceTimer: null,
 })
 
 function schedule评估() {
   if (state.debounceTimer) clearTimeout(state.debounceTimer)
   state.debounceTimer = setTimeout(() => {
-    state.result = calc评估(state.legs)
+    state.result = calc评估(state.legs, healthState.equity, healthState.mm)
+    // sync Greeks
+    state.delta = MOCK_GREEKS.delta
+    state.gamma = MOCK_GREEKS.gamma
+    state.vega = MOCK_GREEKS.vega
+    state.theta = MOCK_GREEKS.theta
   }, 100)
 }
 
 export function useRiskWorkspace() {
   return {
-    state: readonly(state) as Readonly<WorkspaceState>,
-    legs: readonly(state.legs) as Readonly<Leg[]>,
+    // health API
+    health: readonly(healthState),
+    fetchHealth,
+    startHealthPoll,
+    stopHealthPoll,
+    // simulation
+    state: readonly(state),
+    legs: readonly(state.legs),
     addLeg: () => { state.legs.push(defaultLeg()); schedule评估() },
     removeLeg: (id: string) => { state.legs = state.legs.filter(l => l.id !== id); schedule评估() },
     updateLeg: (id: string, patch: Partial<Leg>) => {
