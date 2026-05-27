@@ -29,6 +29,13 @@ const directionStyle = (d: string) => ({
       <span class="dot orange"></span>
       Strategy Sandbox
     </div>
+    <div>
+      <!-- 交易基因选项 -->
+      <div>
+        <span>交易基因</span>
+
+      </div>
+    </div>
 
     <!-- Filters -->
     <div class="filter-bar">
