@@ -43,15 +43,20 @@ interface GreekRow {
   decimals: number
 }
 
-// ── MM ───────────────────────────────────────────────────────────────────────
-const mmArrow = computed(() => {
-  const before = health.mm
-  const after = health.mm + state.result.mmDelta
-  const diff = after - before
-  const sign = diff >= 0 ? '+' : ''
-  return { before: before.toFixed(2), after: after.toFixed(2), diff: `${sign}${diff.toFixed(2)}` }
-})
+// ── IM table ─────────────────────────────────────────────────────────────────
+const imRows = computed(() => [
+  {
+    label: 'IM',
+    initial: health.initialMarginRate,
+    delta: 0,   // TODO: 由策略组变化量填充
+  },
+])
 
+function imOver50(row: typeof imRows.value[0]): boolean {
+  return (row.initial + row.delta) > 50
+}
+
+// ── MM ratio (used by alert) ──────────────────────────────────────────────────
 const mmRatio = computed(() =>
   parseFloat(((state.result.mmDelta / (health.equity || 1)) * 100).toFixed(2))
 )
@@ -104,18 +109,31 @@ const alertMsg = computed(() => {
     <el-alert v-else-if="health.error" :title="health.error" type="error" show-icon :closable="false" />
 
     <template v-else-if="health.data">
-      <!-- MM Evolution -->
+      <!-- IM 变动 -->
       <div class="card">
-        <div class="card-title">IM变动</div>
-        <div class="mm-arrow">
-          <!-- table 初始IM 变化IM 是否超过50%阈值-->
-          <!-- <span class="mm-before">初始IM {{ mmArrow.before }} </span>
-          <span class="arrow">──►</span>
-          <span class="mm-after">{{ mmArrow.after }}</span>
-          <span class="mm-delta" :class="mmArrow.diff.startsWith('-') ? 'down' : 'up'">
-            ({{ mmArrow.diff }} )
-          </span> -->
-        </div>
+        <div class="card-title">IM 变动</div>
+        <el-table :data="imRows" size="small" border class="im-table">
+          <el-table-column prop="label" label="指标" width="80" align="center" />
+          <el-table-column label="仓位 IM" align="center">
+            <template #default="{ row }">
+              {{ row.initial.toFixed(2) }}%
+            </template>
+          </el-table-column>
+          <el-table-column label="变化 IM" align="center">
+            <template #default="{ row }">
+              <span :class="row.delta >= 0 ? 'up' : 'down'">
+                {{ row.delta >= 0 ? '+' : '' }}{{ (row.delta).toFixed(2) }}%
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="超50%阈值" align="center">
+            <template #default="{ row }">
+              <span :class="imOver50(row) ? 'over' : 'ok'">
+                {{ imOver50(row) ? '是' : '否' }}
+              </span>
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
 
       <!-- Greeks comparison -->
@@ -254,47 +272,37 @@ const alertMsg = computed(() => {
   letter-spacing: 0.05em;
 }
 
-.mm-arrow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-family: 'JetBrains Mono', monospace;
-  flex-wrap: wrap;
-}
-
-.mm-before {
-  color: var(--el-text-color-secondary);
-}
-
-.arrow {
-  color: var(--el-text-color-placeholder);
-  font-size: 16px;
-}
-
-.mm-after {
-  color: var(--el-color-primary);
-  font-weight: 700;
-}
-
-.mm-delta {
-  font-size: 12px;
-}
-
-.mm-delta.up {
-  color: #ff4d4f;
-}
-
-.mm-delta.down {
-  color: #52c41a;
-}
-
 /* ── Greeks comparison ── */
 .greek-loading,
 .greek-empty {
   padding: 8px 0;
   font-size: 12px;
   color: var(--el-text-color-disabled);
+}
+
+.im-table {
+  font-size: 12px;
+}
+
+/* IM table up/down/over/ok */
+.up {
+  color: #ff4d4f;
+  font-weight: 600;
+}
+
+.down {
+  color: #52c41a;
+  font-weight: 600;
+}
+
+.over {
+  color: #ff4d4f;
+  font-weight: 700;
+}
+
+.ok {
+  color: #52c41a;
+  font-weight: 700;
 }
 
 .gth,
