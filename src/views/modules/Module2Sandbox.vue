@@ -174,15 +174,18 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 添加策略 -->
-    <el-button class="add-btn" type="primary" plain size="small" @click="addGroup">
-      + 添加策略
-    </el-button>
+    <div style="display: flex; gap: 10px;">
 
-    <!-- 开始评估 -->
-    <el-button type="primary" size="small" @click="handleEvaluate">
-      🚀 开始全矩阵风险评估
-    </el-button>
+      <!-- 添加策略 -->
+      <el-button style="flex: 1;" type="primary" size="" @click="addGroup">
+        + 添加策略
+      </el-button>
+
+      <!-- 开始评估 -->
+      <el-button style="flex: 1;" type="success" size="" @click="handleEvaluate">
+        🚀 开始全矩阵风险评估
+      </el-button>
+    </div>
   </div>
 </template>
 
@@ -386,7 +389,7 @@ onMounted(() => {
 }
 
 .add-btn {
-  width: 100%;
+  /* width: 100%; */
 }
 
 /* Transition */
