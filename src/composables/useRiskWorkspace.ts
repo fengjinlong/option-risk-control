@@ -17,6 +17,15 @@ export interface Leg {
   liquidityCost: number
 }
 
+export interface LegGroup {
+  id: string
+  expiry: string      // 合约到期日，如 '26JUN26'
+  optionName: string  // 期权名称，如 'ETH-26JUN26-2500-C-USDT'
+  direction: LegDirection
+  type: LegType
+  size: number
+}
+
 export interface GreeksComparison {
   delta: number
   gamma: number
@@ -251,6 +260,38 @@ const state = reactive<WorkspaceState>({
   debounceTimer: null,
 })
 
+// ── leg groups ───────────────────────────────────────────────────────────────
+const groups = reactive<LegGroup[]>([])
+
+function defaultGroup(): LegGroup {
+  return {
+    id: crypto.randomUUID(),
+    expiry: '26JUN26',
+    optionName: 'ETH-26JUN26-2500-C-USDT',
+    direction: 'buy',
+    type: 'call',
+    size: 1,
+  }
+}
+
+function addGroup() {
+  groups.push(defaultGroup())
+}
+
+function removeGroup(id: string) {
+  const idx = groups.findIndex(g => g.id === id)
+  if (idx !== -1) groups.splice(idx, 1)
+}
+
+function updateGroup(id: string, patch: Partial<LegGroup>) {
+  const g = groups.find(g => g.id === id)
+  if (g) Object.assign(g, patch)
+}
+
+function resetGroups() {
+  groups.splice(0, groups.length)
+}
+
 function schedulepg() {
   if (state.debounceTimer) clearTimeout(state.debounceTimer)
   state.debounceTimer = setTimeout(() => {
@@ -274,19 +315,13 @@ export function useRiskWorkspace() {
     // positions API
     positions: readonly(positionsState),
     fetchPositions,
+    // leg groups
+    groups,
+    addGroup,
+    removeGroup,
+    updateGroup,
+    resetGroups,
     // simulation
     state: readonly(state),
-    legs: readonly(state.legs),
-    addLeg: () => { state.legs.push(defaultLeg()) },
-    removeLeg: (id: string) => {
-      const idx = state.legs.findIndex(l => l.id === id)
-      if (idx !== -1) state.legs.splice(idx, 1)
-    },
-    updateLeg: (id: string, patch: Partial<Leg>) => {
-      const leg = state.legs.find(l => l.id === id)
-      if (leg) Object.assign(leg, patch)
-    },
-    resetSandbox: () => { state.legs = [] },
-    commitSandbox: () => {},
   }
 }

@@ -1,19 +1,12 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { useRiskWorkspace, type Leg } from '../../composables/useRiskWorkspace'
+import { useRiskWorkspace } from '../../composables/useRiskWorkspace'
 import { ElMessage } from 'element-plus'
 import request from '../../utils/request'
 
-const { legs, addLeg, removeLeg, updateLeg, resetSandbox, commitSandbox } =
-  useRiskWorkspace()
+const { groups, addGroup, removeGroup, updateGroup, resetGroups } = useRiskWorkspace()
 
-const symbols = ['19JUN26']
-const expiries = ['ETH-26JUN26-500-C-USDT']
-
-const selectedSymbol = ref('BTC-PERP')
-const selectedExpiry = ref('27JUN25')
-
-// ── 交易基因表单 ────────────────────────────────────────────────────────────────
+const geneLoading = ref(false)
 const geneForm = reactive({
   baseline_equity: 0,
   max_total_drawdown_pct: 0,
@@ -24,48 +17,34 @@ const geneForm = reactive({
 })
 
 const geneFields = [
-  { key: 'baseline_equity', label: '账户净值 (USD)', suffix: '', step: 100, min: 0, decimals: 2, readonly: true },
-  { key: 'max_total_drawdown_pct', label: '总资产最大回撤', suffix: '%', step: 0.5, min: 0, decimals: 1, readonly: false },
-  { key: 'monthly_loss_limit', label: '月度亏损限额 (USD)', suffix: '', step: 500, min: 0, decimals: 2, readonly: false },
-  { key: 'max_daily_drawdown_pct', label: '每日最大回撤', suffix: '%', step: 0.5, min: 0, decimals: 1, readonly: false },
-  { key: 'extreme_iv_ceiling', label: '极端 IV', suffix: '', step: 5, min: 0, decimals: 1, readonly: false },
-  { key: 'extreme_iv_shift', label: '极端 IV 波动', suffix: '%', step: 5, min: 0, decimals: 1, readonly: false },
+  { key: 'baseline_equity',        label: '账户净值 (USD)',    suffix: '',  step: 100,  min: 0, decimals: 2, readonly: true  },
+  { key: 'max_total_drawdown_pct', label: '总资产最大回撤',    suffix: '%', step: 0.5,  min: 0, decimals: 1, readonly: false },
+  { key: 'monthly_loss_limit',     label: '月度亏损限额 (USD)', suffix: '',  step: 500,  min: 0, decimals: 2, readonly: false },
+  { key: 'max_daily_drawdown_pct',label: '每日最大回撤',      suffix: '%', step: 0.5,  min: 0, decimals: 1, readonly: false },
+  { key: 'extreme_iv_ceiling',     label: '极端 IV',          suffix: '',  step: 5,    min: 0, decimals: 1, readonly: false },
+  { key: 'extreme_iv_shift',       label: '极端 IV 波动',      suffix: '%', step: 5,    min: 0, decimals: 1, readonly: false },
 ] as const
-
-const geneLoading = ref(false)
 
 async function fetchGene() {
   geneLoading.value = true
   try {
     const data = await request.get<typeof geneForm>('/api/v1/config')
     Object.assign(geneForm, data)
-  } catch {
-    // 接口未通时保持默认值
-  } finally {
-    geneLoading.value = false
-  }
+  } catch { /* 接口未通时保持默认值 */ }
+  finally { geneLoading.value = false }
 }
 
 async function handleGeneSave() {
   try {
     await request.post('/api/v1/config/save', { ...geneForm })
     ElMessage.success('交易基因参数已保存')
-  } catch {
-    // error already handled by interceptor
-  }
+  } catch { /* handled by interceptor */ }
 }
 
 onMounted(() => fetchGene())
 
-// ── Leg helpers ──────────────────────────────────────────────────────────────
-const ivHint = (leg: Leg) => {
-  const labels: Record<string, string> = { low: 'Low IV', mid: 'Mid IV', high: 'High IV' }
-  return `${labels[leg.ivStatus] ?? '—'} · 摩擦成本 ≈ ${(leg.liquidityCost * 100).toFixed(1)} bps`
-}
-
-const directionStyle = (d: string) => ({
-  '--dir-color': d === 'buy' ? '#52c41a' : '#ff4d4f',
-})
+// ── 方向样式 ────────────────────────────────────────────────────────────────
+const dirStyle = (d: string) => ({ '--dir-color': d === 'buy' ? '#52c41a' : '#ff4d4f' } as const)
 </script>
 
 <template>
@@ -82,9 +61,15 @@ const directionStyle = (d: string) => ({
         <div v-for="field in geneFields" :key="field.key" class="gene-field">
           <label class="gene-label">{{ field.label }}</label>
           <div class="gene-input-row">
-            <el-input-number v-model="(geneForm as any)[field.key]" :min="field.min" :step="field.step"
-              :precision="field.decimals" size="small" controls-position="right"
-              :disabled="geneLoading || field.readonly" />
+            <el-input-number
+              v-model="(geneForm as any)[field.key]"
+              :min="field.min"
+              :step="field.step"
+              :precision="field.decimals"
+              size="small"
+              controls-position="right"
+              :disabled="geneLoading || field.readonly"
+            />
             <span v-if="field.suffix" class="gene-suffix">{{ field.suffix }}</span>
           </div>
         </div>
@@ -96,84 +81,112 @@ const directionStyle = (d: string) => ({
       </div>
     </div>
 
-    <!-- Filters -->
-
-    <div class="filter-bar">
-      <!-- 日期 -->
-      <el-select v-model="selectedSymbol" size="small" placeholder="选择日期">
-        <el-option v-for="s in symbols" :key="s" :label="s" :value="s" />
-      </el-select>
-      <!-- 期权列表 -->
-      <el-select v-model="selectedExpiry" size="small" placeholder="选择期权">
-        <el-option v-for="e in expiries" :key="e" :label="e" :value="e" />
-      </el-select>
-    </div>
-
-    <!-- Legs -->
-    <div class="legs-container">
-      <transition-group name="leg-slide" tag="div" class="legs-list">
-        <div v-for="(leg, idx) in legs" :key="leg.id" class="leg-card" :style="directionStyle(leg.direction)">
-          <div class="leg-header">
-            <span class="leg-index">Leg {{ idx + 1 }}</span>
-            <el-button size="small" type="danger" plain circle @click="removeLeg(leg.id)">
+    <!-- ── 策略组列表 ── -->
+    <div class="groups-list">
+      <transition-group name="group-slide" tag="div">
+        <div
+          v-for="(group, idx) in groups"
+          :key="group.id"
+          class="group-card"
+          :style="dirStyle(group.direction)"
+        >
+          <!-- 组头部 -->
+          <div class="group-header">
+            <span class="group-title">策略 {{ idx + 1 }}</span>
+            <el-button
+              size="small"
+              type="danger"
+              plain
+              circle
+              @click="removeGroup(group.id)"
+            >
               ✕
             </el-button>
           </div>
 
-          <!-- Direction -->
-          <div class="leg-row">
-            <span class="leg-label">方向</span>
-            <el-radio-group :model-value="leg.direction" size="small"
-              @update:model-value="updateLeg(leg.id, { direction: $event })">
-              <el-radio-button value="buy">
-                <span class="dir-text buy">🟢 Buy</span>
-              </el-radio-button>
-              <el-radio-button value="sell">
-                <span class="dir-text sell">🔴 Sell</span>
-              </el-radio-button>
-            </el-radio-group>
+          <!-- 日期 + 期权列表 -->
+          <div class="group-row">
+            <div class="field">
+              <span class="field-label">日期</span>
+              <el-input
+                :model-value="group.expiry"
+                size="small"
+                @update:model-value="updateGroup(group.id, { expiry: $event as string })"
+                placeholder="如 26JUN26"
+              />
+            </div>
+            <div class="field">
+              <span class="field-label">期权名称</span>
+              <el-input
+                :model-value="group.optionName"
+                size="small"
+                @update:model-value="updateGroup(group.id, { optionName: $event as string })"
+                placeholder="如 ETH-26JUN26-2500-C-USDT"
+              />
+            </div>
           </div>
 
-          <!-- Type -->
-          <div class="leg-row">
-            <span class="leg-label">类型</span>
-            <el-radio-group :model-value="leg.type" size="small"
-              @update:model-value="updateLeg(leg.id, { type: $event })">
-              <el-radio-button value="call">Call</el-radio-button>
-              <el-radio-button value="put">Put</el-radio-button>
-            </el-radio-group>
+          <!-- 方向 + 类型 + 数量 -->
+          <div class="group-row">
+            <div class="field">
+              <span class="field-label">方向</span>
+              <el-radio-group
+                :model-value="group.direction"
+                size="small"
+                @update:model-value="updateGroup(group.id, { direction: $event })"
+              >
+                <el-radio-button value="buy">
+                  <span class="dir-text buy">🟢 买入</span>
+                </el-radio-button>
+                <el-radio-button value="sell">
+                  <span class="dir-text sell">🔴 卖出</span>
+                </el-radio-button>
+              </el-radio-group>
+            </div>
+            <div class="field">
+              <span class="field-label">类型</span>
+              <el-radio-group
+                :model-value="group.type"
+                size="small"
+                @update:model-value="updateGroup(group.id, { type: $event })"
+              >
+                <el-radio-button value="call">Call</el-radio-button>
+                <el-radio-button value="put">Put</el-radio-button>
+              </el-radio-group>
+            </div>
+            <div class="field">
+              <span class="field-label">数量</span>
+              <el-input-number
+                :model-value="group.size"
+                :min="0.1"
+                :max="100"
+                :step="0.1"
+                :precision="1"
+                size="small"
+                controls-position="right"
+                @update:model-value="updateGroup(group.id, { size: $event as number })"
+              />
+            </div>
           </div>
-
-          <!-- Size -->
-
-          <div class="leg-row">
-            <span class="leg-label">Size</span>
-            <el-input-number :model-value="leg.size" size="small" :min="0.1" :max="100" :step="0.1" :precision="1"
-              @update:model-value="updateLeg(leg.id, { size: $event as number })" />
-          </div>
-
-          <!-- IV hint -->
-          <div class="iv-hint">{{ ivHint(leg) }}</div>
         </div>
       </transition-group>
 
-      <div v-if="legs.length === 0" class="empty-state">
-        <span>暂无策略腿</span>
+      <!-- 空状态 -->
+      <div v-if="groups.length === 0" class="empty-state">
+        <span>暂无策略</span>
         <span>点击下方按钮添加</span>
       </div>
     </div>
 
-    <!-- Add leg -->
-    <el-button class="add-btn" type="primary" plain size="small" @click="addLeg">
-      + 添加 Leg
+    <!-- 添加策略 -->
+    <el-button class="add-btn" type="primary" plain size="small" @click="addGroup">
+      + 添加策略
     </el-button>
 
-    <!-- Controls -->
+    <!-- 控制按钮 -->
     <div class="controls">
-      <el-button size="small" @click="resetSandbox">🔄 重置沙盒</el-button>
-      <el-button type="primary" size="small" @click="commitSandbox">
-        🚀 开始全矩阵风险评估
-      </el-button>
+      <el-button size="small" @click="resetGroups">🔄 重置</el-button>
+      <el-button type="primary" size="small">🚀 开始全矩阵风险评估</el-button>
     </div>
   </div>
 </template>
@@ -206,9 +219,7 @@ const directionStyle = (d: string) => ({
   display: inline-block;
 }
 
-.dot.orange {
-  background: #faad14;
-}
+.dot.orange { background: #faad14; }
 
 /* ── Card ── */
 .card {
@@ -254,9 +265,7 @@ const directionStyle = (d: string) => ({
   gap: 4px;
 }
 
-.gene-input-row .el-input-number {
-  width: 100%;
-}
+.gene-input-row .el-input-number { width: 100%; }
 
 .gene-suffix {
   font-size: 11px;
@@ -269,40 +278,27 @@ const directionStyle = (d: string) => ({
   justify-content: flex-end;
 }
 
-/* ── Filters ── */
-.filter-bar {
-  display: flex;
-  gap: 8px;
-}
+/* ── Groups ── */
+.groups-list { display: flex; flex-direction: column; gap: 8px; }
 
-.legs-container {
-  flex: 1;
-}
-
-.legs-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.leg-card {
+.group-card {
   background: var(--el-fill-color-light);
   border: 1.5px solid var(--dir-color, var(--el-border-color));
   border-radius: 8px;
-  padding: 10px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
   transition: border-color 0.2s;
 }
 
-.leg-header {
+.group-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.leg-index {
+.group-title {
   font-size: 11px;
   font-weight: 700;
   color: var(--dir-color);
@@ -310,75 +306,64 @@ const directionStyle = (d: string) => ({
   letter-spacing: 0.06em;
 }
 
-.leg-row {
+.group-row {
   display: flex;
+  gap: 10px;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.leg-label {
-  font-size: 11px;
-  color: var(--el-text-color-secondary);
-  width: 40px;
-  flex-shrink: 0;
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 100px;
 }
 
-.dir-text {
-  font-size: 12px;
-}
+.field .el-input { width: 100%; }
+.field .el-input-number { width: 100%; }
 
-.dir-text.buy {
-  color: #52c41a;
-}
-
-.dir-text.sell {
-  color: #ff4d4f;
-}
-
-.iv-hint {
+.field-label {
   font-size: 10px;
-  color: var(--el-text-color-disabled);
-  padding-left: 4px;
+  color: var(--el-text-color-secondary);
 }
 
+.dir-text { font-size: 12px; }
+.dir-text.buy  { color: #52c41a; }
+.dir-text.sell { color: #ff4d4f; }
+
+/* ── Empty ── */
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  height: 120px;
+  height: 100px;
   border: 1px dashed var(--el-border-color);
   border-radius: 8px;
   color: var(--el-text-color-secondary);
   font-size: 12px;
 }
 
-.add-btn {
-  width: 100%;
-}
+.add-btn { width: 100%; }
 
-.controls {
-  display: flex;
-  gap: 8px;
-}
-
-.controls .el-button {
-  flex: 1;
-}
+.controls { display: flex; gap: 8px; }
+.controls .el-button { flex: 1; }
 
 /* Transition */
-.leg-slide-enter-active,
-.leg-slide-leave-active {
+.group-slide-enter-active,
+.group-slide-leave-active {
   transition: all 0.25s ease;
 }
 
-.leg-slide-enter-from {
+.group-slide-enter-from {
   opacity: 0;
   transform: translateY(-8px);
 }
 
-.leg-slide-leave-to {
+.group-slide-leave-to {
   opacity: 0;
   transform: translateX(20px);
 }
