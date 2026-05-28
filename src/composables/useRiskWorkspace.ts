@@ -277,14 +277,16 @@ export function useRiskWorkspace() {
     // simulation
     state: readonly(state),
     legs: readonly(state.legs),
-    addLeg: () => { state.legs.push(defaultLeg()); schedulepg() },
-    removeLeg: (id: string) => { state.legs = state.legs.filter(l => l.id !== id); schedulepg() },
+    addLeg: () => { state.legs.push(defaultLeg()) },
+    removeLeg: (id: string) => {
+      const idx = state.legs.findIndex(l => l.id === id)
+      if (idx !== -1) state.legs.splice(idx, 1)
+    },
     updateLeg: (id: string, patch: Partial<Leg>) => {
       const leg = state.legs.find(l => l.id === id)
       if (leg) Object.assign(leg, patch)
-      schedulepg()
     },
-    resetSandbox: () => { state.legs = []; schedulepg() },
-    commitSandbox: () => schedulepg(),
+    resetSandbox: () => { state.legs = [] },
+    commitSandbox: () => {},
   }
 }

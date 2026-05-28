@@ -12,10 +12,10 @@ onMounted(() => {
 // ── risk config ──────────────────────────────────────────────────────────────
 const riskConfig = computed(() => {
   const map: Record<string, { border: string; dot: string; label: string; type: string }> = {
-    SAFE:       { border: '#52c41a', dot: '#52c41a', label: 'SAFE',       type: 'success' },
-    ATTENTION:  { border: '#faad14', dot: '#faad14', label: 'ATTENTION',  type: 'warning' },
-    HIGH_RISK:  { border: '#fa8c16', dot: '#fa8c16', label: 'HIGH_RISK',  type: 'warning' },
-    CRITICAL:   { border: '#ff4d4f', dot: '#ff4d4f', label: 'CRITICAL',   type: 'danger'  },
+    SAFE: { border: '#52c41a', dot: '#52c41a', label: 'SAFE', type: 'success' },
+    ATTENTION: { border: '#faad14', dot: '#faad14', label: 'ATTENTION', type: 'warning' },
+    HIGH_RISK: { border: '#fa8c16', dot: '#fa8c16', label: 'HIGH_RISK', type: 'warning' },
+    CRITICAL: { border: '#ff4d4f', dot: '#ff4d4f', label: 'CRITICAL', type: 'danger' },
   }
   const r = health.riskLevel || 'SAFE'
   return map[r] ?? map.SAFE
@@ -32,7 +32,7 @@ const greekRows = computed(() => {
   return [
     { label: 'Delta', val: s.total_net_delta, threshold: t.delta_limit, unit: '', decimals: 4 },
     { label: 'Gamma', val: s.total_net_gamma, threshold: t.gamma_limit, unit: '', decimals: 6 },
-    { label: 'Vega',  val: s.total_net_vega,  threshold: t.vega_limit,  unit: '/%', decimals: 4 },
+    { label: 'Vega', val: s.total_net_vega, threshold: t.vega_limit, unit: '/%', decimals: 4 },
     { label: 'Theta', val: s.total_net_theta, threshold: t.theta_limit, unit: '/day', decimals: 4 },
   ]
 })
@@ -53,17 +53,17 @@ function fmt(val: number, decimals: number): string {
 const positionsList = computed(() => positions.data?.data ?? [])
 
 const positionCols = [
-  { label: '名称',     key: 'name'         },
-  { label: '方向',     key: 'side'         },
-  { label: '数量',     key: 'size'         },
-  { label: '入场价',   key: 'entry_price'  },
-  { label: '当前价',   key: 'current_price'},
-  { label: 'P&L',     key: 'pnl'          },
-  { label: 'Delta',    key: 'net_delta'    },
-  { label: 'Gamma',    key: 'net_gamma'    },
-  { label: 'Vega',     key: 'net_vega'     },
-  { label: 'Theta',    key: 'net_theta'    },
-  { label: 'DTE',      key: 'dte'          },
+  { label: '名称', key: 'name' },
+  { label: '方向', key: 'side' },
+  { label: '数量', key: 'size' },
+  { label: '入场价', key: 'entry_price' },
+  { label: '当前价', key: 'current_price' },
+  { label: 'P&L', key: 'pnl' },
+  { label: 'Delta', key: 'net_delta' },
+  { label: 'Gamma', key: 'net_gamma' },
+  { label: 'Vega', key: 'net_vega' },
+  { label: 'Theta', key: 'net_theta' },
+  { label: 'DTE', key: 'dte' },
 ]
 
 function cellVal(pos: any, key: string): string {
@@ -90,21 +90,12 @@ function cellVal(pos: any, key: string): string {
     </div>
 
     <!-- Error -->
-    <el-alert
-      v-else-if="health.error"
-      :title="health.error"
-      type="error"
-      show-icon
-      :closable="false"
-      class="error-alert"
-    />
+    <el-alert v-else-if="health.error" :title="health.error" type="error" show-icon :closable="false"
+      class="error-alert" />
 
     <template v-else-if="health.data">
       <!-- Risk Level Banner -->
-      <div
-        class="risk-banner"
-        :style="{ borderColor: riskConfig.border, color: riskConfig.border }"
-      >
+      <div class="risk-banner" :style="{ borderColor: riskConfig.border, color: riskConfig.border }">
         <span class="risk-dot" :style="{ background: riskConfig.dot }"></span>
         <span class="risk-label">{{ riskConfig.label }}</span>
         <el-tag :type="riskConfig.type as any" size="small" class="env-tag">
@@ -140,12 +131,8 @@ function cellVal(pos: any, key: string): string {
             <span>保证金利用率</span>
             <span :style="{ color: riskConfig.border }">{{ health.marginUtilization }}%</span>
           </div>
-          <el-progress
-            :percentage="Math.min(health.marginUtilization, 100)"
-            :color="riskConfig.border"
-            :show-text="false"
-            :stroke-width="8"
-          />
+          <el-progress :percentage="Math.min(health.marginUtilization, 100)" :color="riskConfig.border"
+            :show-text="false" :stroke-width="8" />
           <div class="progress-sub">
             <span>IM 占用率 {{ health.initialMarginRate }}%</span>
             <span>保证金余额 ${{ health.marginBalance.toLocaleString() }}</span>
@@ -161,11 +148,7 @@ function cellVal(pos: any, key: string): string {
         </div>
         <div v-else-if="!greeksSummary" class="pos-empty-text">暂无 Greeks 数据</div>
         <div v-else class="greek-list">
-          <div
-            v-for="row in greekRows"
-            :key="row.label"
-            class="greek-item"
-          >
+          <div v-for="row in greekRows" :key="row.label" class="greek-item">
             <div class="greek-header">
               <span class="greek-label">{{ row.label }}</span>
               <span class="greek-values">
@@ -176,13 +159,10 @@ function cellVal(pos: any, key: string): string {
               </span>
             </div>
             <div class="greek-bar-track">
-              <div
-                class="greek-bar-fill"
-                :style="{
-                  width: barPercent(row.val, row.threshold) + '%',
-                  background: barColor(row.val, row.threshold),
-                }"
-              />
+              <div class="greek-bar-fill" :style="{
+                width: barPercent(row.val, row.threshold) + '%',
+                background: barColor(row.val, row.threshold),
+              }" />
             </div>
           </div>
         </div>
@@ -204,15 +184,11 @@ function cellVal(pos: any, key: string): string {
             </thead>
             <tbody>
               <tr v-for="(pos, idx) in positionsList" :key="idx">
-                <td
-                  v-for="col in positionCols"
-                  :key="col.key"
-                  :class="[
-                    'pos-td',
-                    col.key === 'side' ? (pos.side === 'Buy' ? 'dir-buy' : 'dir-sell') : '',
-                    col.key === 'pnl' ? (pos.pnl >= 0 ? 'pnl-pos' : 'pnl-neg') : '',
-                  ]"
-                >
+                <td v-for="col in positionCols" :key="col.key" :class="[
+                  'pos-td',
+                  col.key === 'side' ? (pos.side === 'Buy' ? 'dir-buy' : 'dir-sell') : '',
+                  col.key === 'pnl' ? (pos.pnl >= 0 ? 'pnl-pos' : 'pnl-neg') : '',
+                ]">
                   {{ cellVal(pos, col.key) }}
                 </td>
               </tr>
@@ -265,7 +241,9 @@ function cellVal(pos: any, key: string): string {
   padding: 12px;
 }
 
-.error-alert { border-radius: 8px; }
+.error-alert {
+  border-radius: 8px;
+}
 
 .risk-banner {
   display: flex;
@@ -290,7 +268,9 @@ function cellVal(pos: any, key: string): string {
   flex: 1;
 }
 
-.env-tag { margin-left: auto; }
+.env-tag {
+  margin-left: auto;
+}
 
 .card {
   background: var(--el-fill-color-light);
@@ -334,11 +314,21 @@ function cellVal(pos: any, key: string): string {
   font-family: 'JetBrains Mono', monospace;
 }
 
-.metric-value.accent { color: var(--el-color-primary); }
-.metric-value.warn   { color: #faad14; }
-.metric-value.safe   { color: #52c41a; }
+.metric-value.accent {
+  color: var(--el-color-primary);
+}
 
-.progress-block { margin-top: 4px; }
+.metric-value.warn {
+  color: #faad14;
+}
+
+.metric-value.safe {
+  color: #52c41a;
+}
+
+.progress-block {
+  margin-top: 4px;
+}
 
 .progress-label {
   display: flex;
@@ -471,10 +461,23 @@ function cellVal(pos: any, key: string): string {
   text-align: left;
 }
 
-.pos-td.dir-buy  { color: #52c41a; font-weight: 600; }
-.pos-td.dir-sell { color: #ff4d4f; font-weight: 600; }
-.pos-td.pnl-pos  { color: #52c41a; }
-.pos-td.pnl-neg  { color: #ff4d4f; }
+.pos-td.dir-buy {
+  color: #52c41a;
+  font-weight: 600;
+}
+
+.pos-td.dir-sell {
+  color: #ff4d4f;
+  font-weight: 600;
+}
+
+.pos-td.pnl-pos {
+  color: #52c41a;
+}
+
+.pos-td.pnl-neg {
+  color: #ff4d4f;
+}
 
 .empty-hint {
   display: flex;
