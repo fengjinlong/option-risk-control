@@ -51,3 +51,33 @@ export interface EthOptionsResponse {
     net_theta: number
   }[]
 }
+
+export interface EthOptionDatesResponse {
+  status: string
+  total_dates: number
+  data: string[]
+}
+
+export interface EthOptionsChainApiItem {
+  symbol: string
+  strike: number
+  type: 'Call' | 'Put'
+  bid_price: number
+  ask_price: number
+  mark_price: number
+  open_interest: number
+  greeks: {
+    delta: number
+    gamma: number
+    vega: number
+    theta: number
+    mark_iv: number
+  }
+}
+
+export interface EthOptionsChainResponse {
+  status: string
+  query_date: string
+  total_contracts: number
+  data: EthOptionsChainApiItem[]
+}

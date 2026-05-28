@@ -3,9 +3,20 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRiskWorkspace } from '../../composables/useRiskWorkspace'
 import { ElMessage } from 'element-plus'
 import request from '../../utils/request'
+import type { EthOptionsChainApiItem } from '../../types/account'
 
-const { groups, addGroup, removeGroup, updateGroup, resetGroups } = useRiskWorkspace()
+const {
+  groups,
+  addGroup,
+  removeGroup,
+  updateGroup,
+  resetGroups,
+  options,
+  fetchDates,
+  fetchChain,
+} = useRiskWorkspace()
 
+// ── 交易基因 ────────────────────────────────────────────────────────────────
 const geneLoading = ref(false)
 const geneForm = reactive({
   baseline_equity: 0,
@@ -17,12 +28,12 @@ const geneForm = reactive({
 })
 
 const geneFields = [
-  { key: 'baseline_equity',        label: '账户净值 (USD)',    suffix: '',  step: 100,  min: 0, decimals: 2, readonly: true  },
-  { key: 'max_total_drawdown_pct', label: '总资产最大回撤',    suffix: '%', step: 0.5,  min: 0, decimals: 1, readonly: false },
-  { key: 'monthly_loss_limit',     label: '月度亏损限额 (USD)', suffix: '',  step: 500,  min: 0, decimals: 2, readonly: false },
-  { key: 'max_daily_drawdown_pct',label: '每日最大回撤',      suffix: '%', step: 0.5,  min: 0, decimals: 1, readonly: false },
-  { key: 'extreme_iv_ceiling',     label: '极端 IV',          suffix: '',  step: 5,    min: 0, decimals: 1, readonly: false },
-  { key: 'extreme_iv_shift',       label: '极端 IV 波动',      suffix: '%', step: 5,    min: 0, decimals: 1, readonly: false },
+  { key: 'baseline_equity', label: '账户净值 (USD)', suffix: '', step: 100, min: 0, decimals: 2, readonly: true },
+  { key: 'max_total_drawdown_pct', label: '总资产最大回撤', suffix: '%', step: 0.5, min: 0, decimals: 1, readonly: false },
+  { key: 'monthly_loss_limit', label: '月度亏损限额 (USD)', suffix: '', step: 500, min: 0, decimals: 2, readonly: false },
+  { key: 'max_daily_drawdown_pct', label: '每日最大回撤', suffix: '%', step: 0.5, min: 0, decimals: 1, readonly: false },
+  { key: 'extreme_iv_ceiling', label: '极端 IV', suffix: '', step: 5, min: 0, decimals: 1, readonly: false },
+  { key: 'extreme_iv_shift', label: '极端 IV 波动', suffix: '%', step: 5, min: 0, decimals: 1, readonly: false },
 ] as const
 
 async function fetchGene() {
@@ -41,10 +52,18 @@ async function handleGeneSave() {
   } catch { /* handled by interceptor */ }
 }
 
-onMounted(() => fetchGene())
+// ── 期权链：根据日期获取列表 ─────────────────────────────────────────────────
+function getChain(date: string): EthOptionsChainApiItem[] {
+  return (options.chainMap[date] ?? []) as unknown as EthOptionsChainApiItem[]
+}
 
 // ── 方向样式 ────────────────────────────────────────────────────────────────
 const dirStyle = (d: string) => ({ '--dir-color': d === 'buy' ? '#52c41a' : '#ff4d4f' } as const)
+
+onMounted(() => {
+  fetchGene()
+  fetchDates()
+})
 </script>
 
 <template>
@@ -61,15 +80,9 @@ const dirStyle = (d: string) => ({ '--dir-color': d === 'buy' ? '#52c41a' : '#ff
         <div v-for="field in geneFields" :key="field.key" class="gene-field">
           <label class="gene-label">{{ field.label }}</label>
           <div class="gene-input-row">
-            <el-input-number
-              v-model="(geneForm as any)[field.key]"
-              :min="field.min"
-              :step="field.step"
-              :precision="field.decimals"
-              size="small"
-              controls-position="right"
-              :disabled="geneLoading || field.readonly"
-            />
+            <el-input-number v-model="(geneForm as any)[field.key]" :min="field.min" :step="field.step"
+              :precision="field.decimals" size="small" controls-position="right"
+              :disabled="geneLoading || field.readonly" />
             <span v-if="field.suffix" class="gene-suffix">{{ field.suffix }}</span>
           </div>
         </div>
@@ -84,57 +97,53 @@ const dirStyle = (d: string) => ({ '--dir-color': d === 'buy' ? '#52c41a' : '#ff
     <!-- ── 策略组列表 ── -->
     <div class="groups-list">
       <transition-group name="group-slide" tag="div">
-        <div
-          v-for="(group, idx) in groups"
-          :key="group.id"
-          class="group-card"
-          :style="dirStyle(group.direction)"
-        >
+        <div v-for="(group, idx) in groups" :key="group.id" class="group-card" :style="dirStyle(group.direction)">
           <!-- 组头部 -->
           <div class="group-header">
             <span class="group-title">策略 {{ idx + 1 }}</span>
-            <el-button
-              size="small"
-              type="danger"
-              plain
-              circle
-              @click="removeGroup(group.id)"
-            >
+            <el-button size="small" type="danger" plain circle @click="removeGroup(group.id)">
               ✕
             </el-button>
           </div>
 
-          <!-- 日期 + 期权列表 -->
+          <!-- 日期 + 期权选择 -->
           <div class="group-row">
             <div class="field">
               <span class="field-label">日期</span>
-              <el-input
-                :model-value="group.expiry"
-                size="small"
-                @update:model-value="updateGroup(group.id, { expiry: $event as string })"
-                placeholder="如 26JUN26"
-              />
+              <el-select :model-value="group.expiry" size="small" placeholder="选择日期" clearable filterable
+                :loading="options.datesLoading"
+                @update:model-value="(v: string) => { updateGroup(group.id, { expiry: v, optionName: '' }); if (v) fetchChain(v) }">
+                <el-option v-for="d in options.dates" :key="d" :label="d" :value="d" />
+              </el-select>
             </div>
-            <div class="field">
-              <span class="field-label">期权名称</span>
-              <el-input
-                :model-value="group.optionName"
-                size="small"
-                @update:model-value="updateGroup(group.id, { optionName: $event as string })"
-                placeholder="如 ETH-26JUN26-2500-C-USDT"
-              />
+            <div class="field flex-2">
+              <span class="field-label">期权列表</span>
+              <el-select :model-value="group.optionName" size="small" placeholder="先选日期" clearable filterable
+                :disabled="!group.expiry || options.chainLoading" :loading="options.chainLoading && !!group.expiry"
+                @update:model-value="(v: string) => updateGroup(group.id, { optionName: v })">
+                <el-option v-for="opt in getChain(group.expiry)" :key="opt.symbol" :label="opt.symbol"
+                  :value="opt.symbol">
+                  <span class="opt-symbol">{{ opt.symbol }}</span>
+                  <!-- delta -->
+                  <span class="opt-iv"> Delta {{ opt.greeks.delta.toFixed(4) }}</span>
+                  <!-- gamma -->
+                  <!-- <span class="opt-gamma">Gamma {{ opt.greeks.gamma.toFixed(6) }}</span> -->
+                  <!-- vega -->
+                  <!-- <span class="opt-vega">Vega {{ opt.greeks.vega.toFixed(2) }}</span> -->
+                  <!-- theta -->
+                  <span class="opt-iv"> Theta {{ opt.greeks.theta.toFixed(4) }}</span>
+                  <span class="opt-iv">IV {{ opt.greeks.mark_iv.toFixed(1) }}%</span>
+                </el-option>
+              </el-select>
             </div>
           </div>
 
-          <!-- 方向 + 类型 + 数量 -->
+          <!-- 方向 + 数量 -->
           <div class="group-row">
             <div class="field">
               <span class="field-label">方向</span>
-              <el-radio-group
-                :model-value="group.direction"
-                size="small"
-                @update:model-value="updateGroup(group.id, { direction: $event })"
-              >
+              <el-radio-group :model-value="group.direction" size="small"
+                @update:model-value="updateGroup(group.id, { direction: $event })">
                 <el-radio-button value="buy">
                   <span class="dir-text buy">🟢 买入</span>
                 </el-radio-button>
@@ -144,28 +153,9 @@ const dirStyle = (d: string) => ({ '--dir-color': d === 'buy' ? '#52c41a' : '#ff
               </el-radio-group>
             </div>
             <div class="field">
-              <span class="field-label">类型</span>
-              <el-radio-group
-                :model-value="group.type"
-                size="small"
-                @update:model-value="updateGroup(group.id, { type: $event })"
-              >
-                <el-radio-button value="call">Call</el-radio-button>
-                <el-radio-button value="put">Put</el-radio-button>
-              </el-radio-group>
-            </div>
-            <div class="field">
               <span class="field-label">数量</span>
-              <el-input-number
-                :model-value="group.size"
-                :min="0.1"
-                :max="100"
-                :step="0.1"
-                :precision="1"
-                size="small"
-                controls-position="right"
-                @update:model-value="updateGroup(group.id, { size: $event as number })"
-              />
+              <el-input-number :model-value="group.size" :min="0.1" :max="100" :step="0.1" :precision="1" size="small"
+                controls-position="right" @update:model-value="updateGroup(group.id, { size: $event as number })" />
             </div>
           </div>
         </div>
@@ -219,7 +209,9 @@ const dirStyle = (d: string) => ({ '--dir-color': d === 'buy' ? '#52c41a' : '#ff
   display: inline-block;
 }
 
-.dot.orange { background: #faad14; }
+.dot.orange {
+  background: #faad14;
+}
 
 /* ── Card ── */
 .card {
@@ -265,7 +257,9 @@ const dirStyle = (d: string) => ({ '--dir-color': d === 'buy' ? '#52c41a' : '#ff
   gap: 4px;
 }
 
-.gene-input-row .el-input-number { width: 100%; }
+.gene-input-row .el-input-number {
+  width: 100%;
+}
 
 .gene-suffix {
   font-size: 11px;
@@ -279,7 +273,11 @@ const dirStyle = (d: string) => ({ '--dir-color': d === 'buy' ? '#52c41a' : '#ff
 }
 
 /* ── Groups ── */
-.groups-list { display: flex; flex-direction: column; gap: 8px; }
+.groups-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
 .group-card {
   background: var(--el-fill-color-light);
@@ -309,7 +307,7 @@ const dirStyle = (d: string) => ({ '--dir-color': d === 'buy' ? '#52c41a' : '#ff
 .group-row {
   display: flex;
   gap: 10px;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
 }
 
@@ -317,21 +315,56 @@ const dirStyle = (d: string) => ({ '--dir-color': d === 'buy' ? '#52c41a' : '#ff
   display: flex;
   flex-direction: column;
   gap: 4px;
-  flex: 1;
-  min-width: 100px;
+  min-width: 120px;
 }
 
-.field .el-input { width: 100%; }
-.field .el-input-number { width: 100%; }
+.field.flex-2 {
+  flex: 2;
+}
+
+.field .el-select {
+  width: 100%;
+}
+
+.field .el-input-number {
+  width: 100%;
+}
 
 .field-label {
   font-size: 10px;
   color: var(--el-text-color-secondary);
 }
 
-.dir-text { font-size: 12px; }
-.dir-text.buy  { color: #52c41a; }
-.dir-text.sell { color: #ff4d4f; }
+.dir-text {
+  font-size: 12px;
+}
+
+.dir-text.buy {
+  color: #52c41a;
+}
+
+.dir-text.sell {
+  color: #ff4d4f;
+}
+
+/* 期权下拉选项 */
+.opt-symbol {
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.opt-strike {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  margin-right: 8px;
+}
+
+.opt-iv {
+  font-size: 12px;
+  color: var(--el-text-color-disabled);
+  padding: 0 10px;
+}
 
 /* ── Empty ── */
 .empty-state {
@@ -347,10 +380,18 @@ const dirStyle = (d: string) => ({ '--dir-color': d === 'buy' ? '#52c41a' : '#ff
   font-size: 12px;
 }
 
-.add-btn { width: 100%; }
+.add-btn {
+  width: 100%;
+}
 
-.controls { display: flex; gap: 8px; }
-.controls .el-button { flex: 1; }
+.controls {
+  display: flex;
+  gap: 8px;
+}
+
+.controls .el-button {
+  flex: 1;
+}
 
 /* Transition */
 .group-slide-enter-active,

@@ -19,10 +19,9 @@ export interface Leg {
 
 export interface LegGroup {
   id: string
-  expiry: string      // 合约到期日，如 '26JUN26'
-  optionName: string  // 期权名称，如 'ETH-26JUN26-2500-C-USDT'
+  expiry: string
+  optionName: string
   direction: LegDirection
-  type: LegType
   size: number
 }
 
@@ -239,6 +238,42 @@ async function fetchPositions() {
   }
 }
 
+// ── options dates & chain ─────────────────────────────────────────────────────
+interface OptionsState {
+  datesLoading: boolean
+  chainLoading: boolean
+  dates: string[]
+  chainMap: Record<string, import('../types/account').EthOptionsChainApiItem[]>
+}
+
+const optionsState = reactive<OptionsState>({
+  datesLoading: false,
+  chainLoading: false,
+  dates: [],
+  chainMap: {},
+})
+
+async function fetchDates() {
+  optionsState.datesLoading = true
+  try {
+    const res = await request.get<import('../types/account').EthOptionDatesResponse>('/api/v1/market/eth-options/dates')
+    optionsState.dates = (res as any).data ?? []
+  } finally {
+    optionsState.datesLoading = false
+  }
+}
+
+async function fetchChain(date: string) {
+  if (optionsState.chainMap[date]) return
+  optionsState.chainLoading = true
+  try {
+    const res = await request.get<import('../types/account').EthOptionsChainResponse>(`/api/v1/market/eth-options/chain?date=${date}`)
+    optionsState.chainMap[date] = (res as any).data ?? []
+  } finally {
+    optionsState.chainLoading = false
+  }
+}
+
 // ── sandbox simulation state ────────────────────────────────────────────────
 interface WorkspaceState {
   delta: number
@@ -269,7 +304,6 @@ function defaultGroup(): LegGroup {
     expiry: '26JUN26',
     optionName: 'ETH-26JUN26-2500-C-USDT',
     direction: 'buy',
-    type: 'call',
     size: 1,
   }
 }
@@ -315,6 +349,10 @@ export function useRiskWorkspace() {
     // positions API
     positions: readonly(positionsState),
     fetchPositions,
+    // options dates & chain
+    options: readonly(optionsState),
+    fetchDates,
+    fetchChain,
     // leg groups
     groups,
     addGroup,
