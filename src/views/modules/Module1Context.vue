@@ -124,7 +124,7 @@ function cellVal(pos: any, key: string): string {
             <span class="metric-value safe">${{ health.available.toLocaleString() }}</span>
           </div>
         </div>
-        {{ health }}
+        <!-- {{ health }} -->
 
         <!-- Margin Utilization bar -->
         <div class="progress-block">

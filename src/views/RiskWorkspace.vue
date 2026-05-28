@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import Module1Context from './modules/Module1Context.vue'
 import Module2Sandbox from './modules/Module2Sandbox.vue'
 import Module3Evaluation from './modules/Module3Evaluation.vue'
 import { useRiskWorkspace } from '../composables/useRiskWorkspace'
 
+const router = useRouter()
 const { health, prices, fetchHealth, fetchPrices } = useRiskWorkspace()
+
+function handleDataExplain() {
+  router.push('/explain')
+}
 
 onMounted(() => {
   fetchHealth()
@@ -20,6 +26,8 @@ onMounted(() => {
         <span class="logo-text">📊</span>
         <span class="title">Pre-trade Risk Workspace</span>
       </div>
+      <!--数据说明 el-button -->
+      <el-button type="primary" size="small" @click="handleDataExplain">数据说明</el-button>
       <div class="header-right">
         <!-- {{ prices.data.data }} -->
         <!-- 价格模块 -->

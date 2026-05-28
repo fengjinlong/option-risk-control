@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import RiskWorkspace from '../views/RiskWorkspace.vue'
+import DataExplain from '../views/DataExplain.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -12,6 +13,11 @@ const router = createRouter({
     {
       path: '/risk',
       redirect: '/',
+    },
+    {
+      path: '/explain',
+      name: 'explain',
+      component: DataExplain,
     },
   ],
 })
