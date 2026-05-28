@@ -264,14 +264,14 @@ function commitSandbox() {
       const chain = optionsState.chainMap[g.expiry] ?? []
       const opt = chain.find(o => o.symbol === g.optionName)
       if (!opt) return null
-      const dir = g.direction === 'buy' ? 1 : -1
       return {
         S,
         K: opt.strike,
         optionType: (opt.type === 'Call' ? 'call' : 'put') as 'call' | 'put',
-        size: dir * g.size,
+        direction: g.direction,
+        size: g.size,
         P_mark: opt.mark_price,
-        P_order: opt.bid_price,   // 用 bid_price 作为开仓参考价
+        P_order: opt.bid_price,
       }
     })
     .filter(Boolean) as Parameters<typeof calcTotalIM>[0]

@@ -20,6 +20,7 @@ export interface IMCalcInput {
   S: number        // ETH index price (当前 ETH 指数价格)
   K: number        // strike price (行权价格)
   optionType: 'call' | 'put'
+  direction: 'buy' | 'sell'
   size: number     // position size (持仓张数)
   P_mark: number   // mark price
   P_order: number  // entry / order price
@@ -27,6 +28,7 @@ export interface IMCalcInput {
 
 export interface IMLegResult {
   symbol: string
+  direction: 'buy' | 'sell'
   OTM_Amount: number
   Position_MM: number
   Position_IM_Base: number
@@ -46,10 +48,23 @@ const MM_FACTOR      = 0.03
 const LIQ_FEE_RATE   = 0.002
 
 export function calcLegIM(input: IMCalcInput): IMLegResult {
-  const { S, K, optionType, size, P_mark, P_order } = input
+  const { S, K, optionType, direction, size, P_mark, P_order } = input
   const absSize = Math.abs(size)
 
-  // Step 1: OTM_Amount
+  // buy 方不需要保证金
+  if (direction === 'buy') {
+    return {
+      symbol: `${optionType} ${K}`,
+      direction,
+      OTM_Amount: 0,
+      Position_MM: 0,
+      Position_IM_Base: 0,
+      Final_Position_IM: 0,
+      Required_Margin: 0,
+    }
+  }
+
+  // sell 方按 Bybit 公式计算
   const OTM_Amount = optionType === 'call'
     ? Math.max(0, K - S)
     : Math.max(0, S - K)
@@ -70,11 +85,12 @@ export function calcLegIM(input: IMCalcInput): IMLegResult {
 
   return {
     symbol: `${optionType} ${K}`,
+    direction,
     OTM_Amount:       parseFloat(OTM_Amount.toFixed(4)),
-    Position_MM:     parseFloat(Position_MM.toFixed(4)),
-    Position_IM_Base: parseFloat(Position_IM_Base.toFixed(4)),
+    Position_MM:       parseFloat(Position_MM.toFixed(4)),
+    Position_IM_Base:  parseFloat(Position_IM_Base.toFixed(4)),
     Final_Position_IM: parseFloat(Final_Position_IM.toFixed(4)),
-    Required_Margin:  parseFloat(Required_Margin.toFixed(4)),
+    Required_Margin:   parseFloat(Required_Margin.toFixed(4)),
   }
 }
 
