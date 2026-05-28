@@ -106,14 +106,15 @@ const alertMsg = computed(() => {
     <template v-else-if="health.data">
       <!-- MM Evolution -->
       <div class="card">
-        <div class="card-title">边际保证金变动</div>
+        <div class="card-title">IM变动</div>
         <div class="mm-arrow">
-          <span class="mm-before">{{ mmArrow.before }} BTC</span>
+          <!-- table 初始IM 变化IM 是否超过50%阈值-->
+          <!-- <span class="mm-before">初始IM {{ mmArrow.before }} </span>
           <span class="arrow">──►</span>
-          <span class="mm-after">{{ mmArrow.after }} BTC</span>
+          <span class="mm-after">{{ mmArrow.after }}</span>
           <span class="mm-delta" :class="mmArrow.diff.startsWith('-') ? 'down' : 'up'">
-            ({{ mmArrow.diff }} BTC)
-          </span>
+            ({{ mmArrow.diff }} )
+          </span> -->
         </div>
       </div>
 

@@ -124,11 +124,12 @@ function cellVal(pos: any, key: string): string {
             <span class="metric-value safe">${{ health.available.toLocaleString() }}</span>
           </div>
         </div>
+        {{ health }}
 
         <!-- Margin Utilization bar -->
         <div class="progress-block">
           <div class="progress-label">
-            <span>保证金利用率</span>
+            <span>保证金利用率MM</span>
             <span :style="{ color: riskConfig.border }">{{ health.marginUtilization }}%</span>
           </div>
           <el-progress :percentage="Math.min(health.marginUtilization, 100)" :color="riskConfig.border"
