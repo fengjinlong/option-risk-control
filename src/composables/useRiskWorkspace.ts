@@ -1,4 +1,4 @@
-import { reactive, readonly } from 'vue'
+import { reactive, readonly, computed } from 'vue'
 import request from '../utils/request'
 import type { AccountHealth } from '../types/account'
 
@@ -289,7 +289,6 @@ interface WorkspaceState {
   theta: number
   legs: Leg[]
   result: Risk评估Result
-  groupsGreeks: GroupsGreeks
   debounceTimer: ReturnType<typeof setTimeout> | null
 }
 
@@ -300,12 +299,28 @@ const state = reactive<WorkspaceState>({
   theta: MOCK_GREEKS.theta,
   legs: [],
   result: calc评估([], 0, 0),
-  groupsGreeks: { delta: 0, gamma: 0, vega: 0, theta: 0 },
   debounceTimer: null,
 })
 
 // ── leg groups ───────────────────────────────────────────────────────────────
 const groups = reactive<LegGroup[]>([])
+
+// ── leg groups Greeks（实时计算）──────────────────────────────────────────────
+const groupsGreeks = computed<GroupsGreeks>(() => {
+  const result: GroupsGreeks = { delta: 0, gamma: 0, vega: 0, theta: 0 }
+  for (const g of groups) {
+    if (!g.expiry || !g.optionName) continue
+    const chain = optionsState.chainMap[g.expiry] ?? []
+    const opt = chain.find(o => o.symbol === g.optionName)
+    if (!opt) continue
+    const dir = g.direction === 'buy' ? 1 : -1
+    result.delta += dir * opt.greeks.delta * g.size
+    result.gamma += dir * opt.greeks.gamma * g.size
+    result.vega  += dir * opt.greeks.vega  * g.size
+    result.theta += dir * opt.greeks.theta * g.size
+  }
+  return result
+})
 
 function defaultGroup(): LegGroup {
   return {
@@ -335,21 +350,7 @@ function resetGroups() {
   groups.splice(0, groups.length)
 }
 
-function commitSandbox() {
-  const result: GroupsGreeks = { delta: 0, gamma: 0, vega: 0, theta: 0 }
-  for (const g of groups) {
-    const chain = optionsState.chainMap[g.expiry] ?? []
-    const opt = chain.find(o => o.symbol === g.optionName)
-    if (!opt) continue
-    const dir = g.direction === 'buy' ? 1 : -1
-    result.delta += dir * opt.greeks.delta
-    result.gamma += dir * opt.greeks.gamma
-    result.vega  += dir * opt.greeks.vega
-    result.theta += dir * opt.greeks.theta
-  }
-  state.groupsGreeks = result
-}
-
+// ── sandbox simulation state ────────────────────────────────────────────────
 function schedulepg() {
   if (state.debounceTimer) clearTimeout(state.debounceTimer)
   state.debounceTimer = setTimeout(() => {
@@ -383,7 +384,7 @@ export function useRiskWorkspace() {
     removeGroup,
     updateGroup,
     resetGroups,
-    commitSandbox,
+    groupsGreeks,
     // simulation
     state: readonly(state),
   }

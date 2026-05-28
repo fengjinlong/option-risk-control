@@ -13,7 +13,6 @@ const {
   options,
   fetchDates,
   fetchChain,
-  commitSandbox,
 } = useRiskWorkspace()
 
 // ── 交易基因 ────────────────────────────────────────────────────────────────
@@ -174,7 +173,7 @@ onMounted(() => {
     </el-button>
 
     <!-- 开始评估 -->
-    <el-button type="primary" size="small" @click="commitSandbox">
+    <el-button type="primary" size="small">
       🚀 开始全矩阵风险评估
     </el-button>
   </div>

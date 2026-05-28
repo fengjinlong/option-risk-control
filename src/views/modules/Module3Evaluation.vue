@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useRiskWorkspace, type HeatCell } from '../../composables/useRiskWorkspace'
 
-const { health, positions, state } = useRiskWorkspace()
+const { health, positions, state, groupsGreeks } = useRiskWorkspace()
 
 const PRICE_PCTS = [-20, -15, -10, -5, 0, 5, 10, 15, 20]
 const IV_PCTS = [-10, -5, 0, 5, 10, 15, 20]
@@ -17,7 +17,7 @@ const greekRows = computed(() => {
   const t = greeksThresholds.value
   if (!s) return []
 
-  const gg = state.groupsGreeks
+  const gg = groupsGreeks.value
 
   return [
     { label: 'Delta', base: s.total_net_delta, delta: gg.delta, threshold: t?.delta_limit ?? 0, decimals: 4 },
