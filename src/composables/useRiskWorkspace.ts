@@ -310,8 +310,8 @@ const groups = reactive<LegGroup[]>([])
 function defaultGroup(): LegGroup {
   return {
     id: crypto.randomUUID(),
-    expiry: '26JUN26',
-    optionName: 'ETH-26JUN26-2500-C-USDT',
+    expiry: '',
+    optionName: '',
     direction: 'buy',
     size: 1,
   }
