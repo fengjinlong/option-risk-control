@@ -7,8 +7,8 @@ import request from '../../utils/request'
 const { legs, addLeg, removeLeg, updateLeg, resetSandbox, commitSandbox } =
   useRiskWorkspace()
 
-const symbols = ['BTC-PERP', 'ETH-PERP', 'SOL-PERP', 'SOL-27JUN25', 'BTC-27JUN25']
-const expiries = ['25JUN25', '27JUN25', '25SEP25', '26DEC25']
+const symbols = ['19JUN26']
+const expiries = ['ETH-26JUN26-500-C-USDT']
 
 const selectedSymbol = ref('BTC-PERP')
 const selectedExpiry = ref('27JUN25')
@@ -97,11 +97,14 @@ const directionStyle = (d: string) => ({
     </div>
 
     <!-- Filters -->
+
     <div class="filter-bar">
-      <el-select v-model="selectedSymbol" size="small" placeholder="Select Symbol">
+      <!-- 日期 -->
+      <el-select v-model="selectedSymbol" size="small" placeholder="选择日期">
         <el-option v-for="s in symbols" :key="s" :label="s" :value="s" />
       </el-select>
-      <el-select v-model="selectedExpiry" size="small" placeholder="Expiry">
+      <!-- 期权列表 -->
+      <el-select v-model="selectedExpiry" size="small" placeholder="选择期权">
         <el-option v-for="e in expiries" :key="e" :label="e" :value="e" />
       </el-select>
     </div>
@@ -141,12 +144,8 @@ const directionStyle = (d: string) => ({
             </el-radio-group>
           </div>
 
-          <!-- Strike + Size -->
-          <!-- <div class="leg-row">
-            <span class="leg-label">Strike</span>
-            <el-input-number :model-value="leg.strike" size="small" :min="1000" :max="200000" :step="500" :precision="0"
-              @update:model-value="updateLeg(leg.id, { strike: $event as number })" />
-          </div> -->
+          <!-- Size -->
+
           <div class="leg-row">
             <span class="leg-label">Size</span>
             <el-input-number :model-value="leg.size" size="small" :min="0.1" :max="100" :step="0.1" :precision="1"
