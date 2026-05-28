@@ -49,6 +49,13 @@ export interface Risk评估Result {
   heatMatrix: HeatCell[]
 }
 
+export interface GroupsGreeks {
+  delta: number
+  gamma: number
+  vega: number
+  theta: number
+}
+
 // ── mock Greeks (sandbox simulation uses real API equity for liquidation) ─────
 const MOCK_GREEKS = {
   delta: -0.38,
@@ -282,6 +289,7 @@ interface WorkspaceState {
   theta: number
   legs: Leg[]
   result: Risk评估Result
+  groupsGreeks: GroupsGreeks
   debounceTimer: ReturnType<typeof setTimeout> | null
 }
 
@@ -292,6 +300,7 @@ const state = reactive<WorkspaceState>({
   theta: MOCK_GREEKS.theta,
   legs: [],
   result: calc评估([], 0, 0),
+  groupsGreeks: { delta: 0, gamma: 0, vega: 0, theta: 0 },
   debounceTimer: null,
 })
 
@@ -324,6 +333,21 @@ function updateGroup(id: string, patch: Partial<LegGroup>) {
 
 function resetGroups() {
   groups.splice(0, groups.length)
+}
+
+function commitSandbox() {
+  const result: GroupsGreeks = { delta: 0, gamma: 0, vega: 0, theta: 0 }
+  for (const g of groups) {
+    const chain = optionsState.chainMap[g.expiry] ?? []
+    const opt = chain.find(o => o.symbol === g.optionName)
+    if (!opt) continue
+    const dir = g.direction === 'buy' ? 1 : -1
+    result.delta += dir * opt.greeks.delta
+    result.gamma += dir * opt.greeks.gamma
+    result.vega  += dir * opt.greeks.vega
+    result.theta += dir * opt.greeks.theta
+  }
+  state.groupsGreeks = result
 }
 
 function schedulepg() {
@@ -359,6 +383,7 @@ export function useRiskWorkspace() {
     removeGroup,
     updateGroup,
     resetGroups,
+    commitSandbox,
     // simulation
     state: readonly(state),
   }

@@ -11,20 +11,19 @@ const IV_PCTS = [-10, -5, 0, 5, 10, 15, 20]
 const greeksSummary = computed(() => positions.data?.greeks_summary ?? null)
 const greeksThresholds = computed(() => positions.data?.greeks_thresholds ?? null)
 
-// Greeks 对比行：从 API 取当前值 + 阈值，从 sandbox legs 计算变化量
+// Greeks 对比行：从 API 取当前值 + 阈值，从策略组计算变化量
 const greekRows = computed(() => {
   const s = greeksSummary.value
   const t = greeksThresholds.value
   if (!s) return []
 
-  // 从 sandbox legs 汇总增量
-  const g = state.result.greeks
+  const gg = state.groupsGreeks
 
   return [
-    { label: 'Delta', base: s.total_net_delta, delta: g.deltaNew - g.delta,     threshold: t?.delta_limit ?? 0, decimals: 4 },
-    { label: 'Gamma', base: s.total_net_gamma, delta: g.gammaNew - g.gamma,   threshold: t?.gamma_limit ?? 0, decimals: 6 },
-    { label: 'Vega',  base: s.total_net_vega,  delta: g.vegaNew - g.vega,     threshold: t?.vega_limit ?? 0,  decimals: 4 },
-    { label: 'Theta', base: s.total_net_theta, delta: g.thetaNew - g.theta,   threshold: t?.theta_limit ?? 0,  decimals: 4 },
+    { label: 'Delta', base: s.total_net_delta, delta: gg.delta, threshold: t?.delta_limit ?? 0, decimals: 4 },
+    { label: 'Gamma', base: s.total_net_gamma, delta: gg.gamma, threshold: t?.gamma_limit ?? 0, decimals: 6 },
+    { label: 'Vega',  base: s.total_net_vega,  delta: gg.vega,  threshold: t?.vega_limit ?? 0,  decimals: 4 },
+    { label: 'Theta', base: s.total_net_theta, delta: gg.theta, threshold: t?.theta_limit ?? 0,  decimals: 4 },
   ]
 })
 
@@ -45,11 +44,6 @@ function isOverLimit(row: GreekRow | undefined): boolean {
   // 超限 = 新值（base + delta）超出阈值正向或负向边界
   const newVal = row.base + row.delta
   return Math.abs(newVal) > row.threshold
-}
-
-function calcNewVal(row: GreekRow | undefined): number {
-  if (!row) return 0
-  return row.base + row.delta
 }
 
 // ── MM ───────────────────────────────────────────────────────────────────────

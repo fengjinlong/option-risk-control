@@ -10,10 +10,10 @@ const {
   addGroup,
   removeGroup,
   updateGroup,
-  resetGroups,
   options,
   fetchDates,
   fetchChain,
+  commitSandbox,
 } = useRiskWorkspace()
 
 // ── 交易基因 ────────────────────────────────────────────────────────────────
@@ -173,11 +173,10 @@ onMounted(() => {
       + 添加策略
     </el-button>
 
-    <!-- 控制按钮 -->
-    <div class="controls">
-      <el-button size="small" @click="resetGroups">🔄 重置</el-button>
-      <el-button type="primary" size="small">🚀 开始全矩阵风险评估</el-button>
-    </div>
+    <!-- 开始评估 -->
+    <el-button type="primary" size="small" @click="commitSandbox">
+      🚀 开始全矩阵风险评估
+    </el-button>
   </div>
 </template>
 
@@ -382,15 +381,6 @@ onMounted(() => {
 
 .add-btn {
   width: 100%;
-}
-
-.controls {
-  display: flex;
-  gap: 8px;
-}
-
-.controls .el-button {
-  flex: 1;
 }
 
 /* Transition */
