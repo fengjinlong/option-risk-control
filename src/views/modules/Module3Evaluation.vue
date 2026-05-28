@@ -22,9 +22,13 @@ const greekRows = computed(() => {
   return [
     { label: 'Delta', base: s.total_net_delta, delta: gg.delta, threshold: t?.delta_limit ?? 0, decimals: 4 },
     { label: 'Gamma', base: s.total_net_gamma, delta: gg.gamma, threshold: t?.gamma_limit ?? 0, decimals: 6 },
-    { label: 'Vega',  base: s.total_net_vega,  delta: gg.vega,  threshold: t?.vega_limit ?? 0,  decimals: 4 },
-    { label: 'Theta', base: s.total_net_theta, delta: gg.theta, threshold: t?.theta_limit ?? 0,  decimals: 4 },
-  ]
+    { label: 'Vega', base: s.total_net_vega, delta: gg.vega, threshold: t?.vega_limit ?? 0, decimals: 4 },
+    { label: 'Theta', base: s.total_net_theta, delta: gg.theta, threshold: t?.theta_limit ?? 0, decimals: 4 },
+  ].map(row => ({
+    ...row,
+    newVal: row.base + row.delta,
+    pct: row.threshold !== 0 ? Math.min(Math.abs((row.base + row.delta) / row.threshold) * 100, 9999) : 0,
+  }))
 })
 
 function fmt(v: number, d: number): string {
@@ -37,13 +41,6 @@ interface GreekRow {
   delta: number
   threshold: number
   decimals: number
-}
-
-function isOverLimit(row: GreekRow | undefined): boolean {
-  if (!row) return false
-  // 超限 = 新值（base + delta）超出阈值正向或负向边界
-  const newVal = row.base + row.delta
-  return Math.abs(newVal) > row.threshold
 }
 
 // ── MM ───────────────────────────────────────────────────────────────────────
@@ -136,27 +133,21 @@ const alertMsg = computed(() => {
             <span>当前</span>
             <span>变化</span>
             <span>阈值</span>
-            <span>是否超限</span>
+            <span>当前/阈值</span>
           </div>
           <div v-for="row in greekRows" :key="row.label" class="gtr">
             <span class="glabel">{{ row.label }}</span>
             <!-- 当前 -->
             <span class="gbase">{{ fmt(row.base, row.decimals) }}</span>
             <!-- 变化 -->
-            <span
-              class="gdelta"
-              :class="row.delta >= 0 ? 'up' : 'down'"
-            >
+            <span class="gdelta" :class="row.delta >= 0 ? 'up' : 'down'">
               {{ (row.delta >= 0 ? '+' : '') + fmt(row.delta, row.decimals) }}
             </span>
             <!-- 阈值 -->
             <span class="gthreshold">{{ fmt(row.threshold, row.decimals) }}</span>
-            <!-- 是否超限 -->
-            <span
-              class="gover"
-              :class="isOverLimit(row) ? 'yes' : 'no'"
-            >
-              {{ isOverLimit(row) ? '是' : '否' }}
+            <!-- 当前/阈值百分比 -->
+            <span class="gpct" :class="row.pct > 100 ? 'over' : 'ok'">
+              {{ row.pct.toFixed(1) }}%
             </span>
           </div>
         </template>
@@ -183,12 +174,9 @@ const alertMsg = computed(() => {
             <tbody>
               <tr v-for="pricePct in PRICE_PCTS" :key="pricePct">
                 <td class="row-label">{{ pricePct > 0 ? `+${pricePct}` : pricePct }}%</td>
-                <td
-                  v-for="ivPct in IV_PCTS"
-                  :key="ivPct"
-                  :style="cellStyle(state.result.heatMatrix.find(c => c.pricePct === pricePct && c.ivPct === ivPct)!)"
-                >
-                  {{ cellText(state.result.heatMatrix.find(c => c.pricePct === pricePct && c.ivPct === ivPct)!) }}
+                <td v-for="ivPct in IV_PCTS" :key="ivPct"
+                  :style="cellStyle(state.result.heatMatrix.find(c => c.pricePct === pricePct && c.ivPct === ivPct)!)">
+                  {{cellText(state.result.heatMatrix.find(c => c.pricePct === pricePct && c.ivPct === ivPct)!)}}
                 </td>
               </tr>
             </tbody>
@@ -203,12 +191,8 @@ const alertMsg = computed(() => {
       </div>
 
       <!-- Alert -->
-      <el-alert
-        :title="alertMsg"
-        :type="isHighRisk ? 'error' : isWarning ? 'warning' : 'success'"
-        show-icon
-        :closable="false"
-      />
+      <el-alert :title="alertMsg" :type="isHighRisk ? 'error' : isWarning ? 'warning' : 'success'" show-icon
+        :closable="false" />
     </template>
   </div>
 </template>
@@ -241,9 +225,17 @@ const alertMsg = computed(() => {
   display: inline-block;
 }
 
-.dot.green  { background: #52c41a; }
-.dot.orange { background: #faad14; }
-.dot.red    { background: #ff4d4f; }
+.dot.green {
+  background: #52c41a;
+}
+
+.dot.orange {
+  background: #faad14;
+}
+
+.dot.red {
+  background: #ff4d4f;
+}
 
 .card {
   background: var(--el-fill-color-light);
@@ -270,12 +262,31 @@ const alertMsg = computed(() => {
   flex-wrap: wrap;
 }
 
-.mm-before  { color: var(--el-text-color-secondary); }
-.arrow      { color: var(--el-text-color-placeholder); font-size: 16px; }
-.mm-after   { color: var(--el-color-primary); font-weight: 700; }
-.mm-delta   { font-size: 12px; }
-.mm-delta.up   { color: #ff4d4f; }
-.mm-delta.down { color: #52c41a; }
+.mm-before {
+  color: var(--el-text-color-secondary);
+}
+
+.arrow {
+  color: var(--el-text-color-placeholder);
+  font-size: 16px;
+}
+
+.mm-after {
+  color: var(--el-color-primary);
+  font-weight: 700;
+}
+
+.mm-delta {
+  font-size: 12px;
+}
+
+.mm-delta.up {
+  color: #ff4d4f;
+}
+
+.mm-delta.down {
+  color: #52c41a;
+}
 
 /* ── Greeks comparison ── */
 .greek-loading,
@@ -288,7 +299,7 @@ const alertMsg = computed(() => {
 .gth,
 .gtr {
   display: grid;
-  grid-template-columns: 56px 1fr 1fr 1fr 56px;
+  grid-template-columns: 56px 1fr 1fr 1fr 1fr;
   gap: 4px;
   padding: 5px 0;
 }
@@ -322,8 +333,13 @@ const alertMsg = computed(() => {
   font-weight: 600;
 }
 
-.gdelta.up   { color: #ff4d4f; }
-.gdelta.down { color: #52c41a; }
+.gdelta.up {
+  color: #ff4d4f;
+}
+
+.gdelta.down {
+  color: #52c41a;
+}
 
 .gthreshold {
   font-family: 'JetBrains Mono', monospace;
@@ -331,17 +347,25 @@ const alertMsg = computed(() => {
   color: var(--el-text-color-secondary);
 }
 
-.gover {
+.gpct {
+  font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   font-weight: 700;
   text-align: center;
 }
 
-.gover.yes { color: #ff4d4f; }
-.gover.no  { color: #52c41a; }
+.gpct.ok {
+  color: #52c41a;
+}
+
+.gpct.over {
+  color: #ff4d4f;
+}
 
 /* ── Heat Matrix ── */
-.heat-card { overflow: hidden; }
+.heat-card {
+  overflow: hidden;
+}
 
 .matrix-meta {
   display: flex;
@@ -357,7 +381,9 @@ const alertMsg = computed(() => {
   font-weight: 700;
 }
 
-.matrix-wrap { overflow-x: auto; }
+.matrix-wrap {
+  overflow-x: auto;
+}
 
 .matrix-table {
   width: 100%;
@@ -403,8 +429,23 @@ const alertMsg = computed(() => {
   border-radius: 4px;
 }
 
-.legend.safe   { background: #14532d; color: #4ade80; }
-.legend.warn   { background: #78350f; color: #fde68a; }
-.legend.danger { background: #9a3412; color: #fed7aa; }
-.legend.liquid { background: #7f1d1d; color: #fff; }
+.legend.safe {
+  background: #14532d;
+  color: #4ade80;
+}
+
+.legend.warn {
+  background: #78350f;
+  color: #fde68a;
+}
+
+.legend.danger {
+  background: #9a3412;
+  color: #fed7aa;
+}
+
+.legend.liquid {
+  background: #7f1d1d;
+  color: #fff;
+}
 </style>
