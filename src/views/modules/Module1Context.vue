@@ -342,8 +342,8 @@ function cellVal(pos: any, key: string): string {
 .progress-sub {
   display: flex;
   justify-content: space-between;
-  font-size: 9px;
-  color: var(--el-text-color-disabled);
+  font-size: 10px;
+  /* color: var(--el-text-color-disabled); */
   margin-top: 4px;
 }
 
