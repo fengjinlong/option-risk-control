@@ -142,11 +142,11 @@ const directionStyle = (d: string) => ({
           </div>
 
           <!-- Strike + Size -->
-          <div class="leg-row">
+          <!-- <div class="leg-row">
             <span class="leg-label">Strike</span>
             <el-input-number :model-value="leg.strike" size="small" :min="1000" :max="200000" :step="500" :precision="0"
               @update:model-value="updateLeg(leg.id, { strike: $event as number })" />
-          </div>
+          </div> -->
           <div class="leg-row">
             <span class="leg-label">Size</span>
             <el-input-number :model-value="leg.size" size="small" :min="0.1" :max="100" :step="0.1" :precision="1"
