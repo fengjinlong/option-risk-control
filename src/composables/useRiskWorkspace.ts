@@ -1,6 +1,7 @@
 import { reactive, readonly, computed } from 'vue'
 import request from '../utils/request'
 import type { AccountHealth } from '../types/account'
+import { calcTotalIM, type IMCalcResult } from './useIMCalculator'
 
 // ── types ────────────────────────────────────────────────────────────────────
 export type LegDirection = 'buy' | 'sell'
@@ -245,6 +246,43 @@ async function fetchPositions() {
   }
 }
 
+// ── IM delta state ────────────────────────────────────────────────────────────
+const imDeltaState = reactive<{
+  result: IMCalcResult | null
+}>({
+  result: null,
+})
+
+function commitSandbox() {
+  const S = (pricesState.data as any)?.data?.ETH ?? 0
+  console.log('[commitSandbox] S =', S, '| groups =', groups.length)
+  if (S === 0) { console.warn('[commitSandbox] S is 0, skip'); return }
+
+  const inputs = groups
+    .filter(g => g.expiry && g.optionName)
+    .map(g => {
+      const chain = optionsState.chainMap[g.expiry] ?? []
+      const opt = chain.find(o => o.symbol === g.optionName)
+      if (!opt) return null
+      const dir = g.direction === 'buy' ? 1 : -1
+      return {
+        S,
+        K: opt.strike,
+        optionType: (opt.type === 'Call' ? 'call' : 'put') as 'call' | 'put',
+        size: dir * g.size,
+        P_mark: opt.mark_price,
+        P_order: opt.bid_price,   // 用 bid_price 作为开仓参考价
+      }
+    })
+    .filter(Boolean) as Parameters<typeof calcTotalIM>[0]
+
+  console.log('[commitSandbox] inputs after filter:', JSON.stringify(inputs, null, 2))
+  const rawResult = calcTotalIM(inputs)
+  console.log('[IM Calculator] inputs:', JSON.stringify(inputs, null, 2))
+  console.log('[IM Calculator] raw result:', JSON.stringify(rawResult, null, 2))
+  imDeltaState.result = rawResult
+}
+
 // ── options dates & chain ─────────────────────────────────────────────────────
 interface OptionsState {
   datesLoading: boolean
@@ -385,6 +423,8 @@ export function useRiskWorkspace() {
     updateGroup,
     resetGroups,
     groupsGreeks,
+    commitSandbox,
+    imDelta: readonly(imDeltaState),
     // simulation
     state: readonly(state),
   }

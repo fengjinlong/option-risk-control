@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useRiskWorkspace, type HeatCell } from '../../composables/useRiskWorkspace'
 
-const { health, positions, state, groupsGreeks } = useRiskWorkspace()
+const { health, positions, state, groupsGreeks, imDelta } = useRiskWorkspace()
 
 const PRICE_PCTS = [-20, -15, -10, -5, 0, 5, 10, 15, 20]
 const IV_PCTS = [-10, -5, 0, 5, 10, 15, 20]
@@ -44,13 +44,17 @@ interface GreekRow {
 }
 
 // ── IM table ─────────────────────────────────────────────────────────────────
-const imRows = computed(() => [
-  {
-    label: 'IM',
-    initial: health.initialMarginRate,
-    delta: 0,   // TODO: 由策略组变化量填充
-  },
-])
+const imRows = computed(() => {
+  const totalIM = imDelta.result?.totalIM ?? 0
+  const delta = health.available > 0 ? (totalIM / health.available) * 100 : 0
+  return [
+    {
+      label: 'IM',
+      initial: health.initialMarginRate,
+      delta,
+    },
+  ]
+})
 
 function imOver50(row: typeof imRows.value[0]): boolean {
   return (row.initial + row.delta) > 50

@@ -13,6 +13,7 @@ const {
   options,
   fetchDates,
   fetchChain,
+  commitSandbox,
 } = useRiskWorkspace()
 
 // ── 交易基因 ────────────────────────────────────────────────────────────────
@@ -54,6 +55,12 @@ async function handleGeneSave() {
 // ── 期权链：根据日期获取列表 ─────────────────────────────────────────────────
 function getChain(date: string): EthOptionsChainApiItem[] {
   return (options.chainMap[date] ?? []) as unknown as EthOptionsChainApiItem[]
+}
+
+async function handleEvaluate() {
+  console.log('[handleEvaluate] clicked')
+  commitSandbox()
+  ElMessage.success('风险评估完成')
 }
 
 // ── 方向样式 ────────────────────────────────────────────────────────────────
@@ -173,7 +180,7 @@ onMounted(() => {
     </el-button>
 
     <!-- 开始评估 -->
-    <el-button type="primary" size="small">
+    <el-button type="primary" size="small" @click="handleEvaluate">
       🚀 开始全矩阵风险评估
     </el-button>
   </div>
