@@ -102,93 +102,88 @@ const alertMsg = computed(() => {
     </div>
 
     <!-- Error -->
-    <el-alert
-      v-else-if="health.error"
-      :title="health.error"
-      type="error"
-      show-icon
-      :closable="false"
-    />
+    <el-alert v-else-if="health.error" :title="health.error" type="error" show-icon :closable="false" />
 
     <template v-else-if="health.data">
-    <!-- MM Evolution -->
-    <div class="card">
-      <div class="card-title">边际保证金变动</div>
-      <div class="mm-arrow">
-        <span class="mm-before">{{ mmArrow.before }} BTC</span>
-        <span class="arrow">──►</span>
-        <span class="mm-after">{{ mmArrow.after }} BTC</span>
-        <span class="mm-delta" :class="mmArrow.diff.startsWith('-') ? 'down' : 'up'">
-          ({{ mmArrow.diff }} BTC)
-        </span>
-      </div>
-    </div>
-
-    <!-- Greeks comparison -->
-    <div class="card">
-      <div class="card-title">Greeks 增量合并对比</div>
-      <div class="greek-table">
-        <div class="gth">
-          <span>Greek</span>
-          <span>当前</span>
-          <span>预计</span>
-          <span>变化</span>
-        </div>
-        <div v-for="row in greekRows" :key="row.label" class="gtr">
-          <span class="glabel">{{ row.label }}</span>
-          <span class="gbase">{{ row.base.toFixed(4) }}</span>
-          <span class="gnew">{{ row.new.toFixed(4) }}</span>
-          <span class="gdiff" :class="row.new - row.base >= 0 ? 'up' : 'down'">
-            {{ (row.new - row.base >= 0 ? '+' : '') + (row.new - row.base).toFixed(4) }}
+      <!-- MM Evolution -->
+      <div class="card">
+        <div class="card-title">边际保证金变动</div>
+        <div class="mm-arrow">
+          <span class="mm-before">{{ mmArrow.before }} BTC</span>
+          <span class="arrow">──►</span>
+          <span class="mm-after">{{ mmArrow.after }} BTC</span>
+          <span class="mm-delta" :class="mmArrow.diff.startsWith('-') ? 'down' : 'up'">
+            ({{ mmArrow.diff }} BTC)
           </span>
         </div>
       </div>
-    </div>
 
-    <!-- Heat Matrix -->
-    <div class="card heat-card">
-      <div class="card-title">二维压力测试矩阵</div>
-      <div class="matrix-meta">
-        <span>纵轴: 标的价格变动 (%)</span>
-        <span>横轴: IV 变动 (%)</span>
-        <span class="liquidated-count" v-if="liquidatedCount > 0">
-          🔴 {{ liquidatedCount }} 格爆仓
-        </span>
+      <!-- Greeks comparison -->
+      <div class="card">
+        <div class="card-title">Greeks 增量合并对比</div>
+        <div class="greek-table">
+          <div class="gth">
+            <span>Greek</span>
+            <span>当前</span>
+            <span>变化</span>
+            <span>阈值</span>
+            <span>是否超限</span>
+          </div>
+          <div v-for="row in greekRows" :key="row.label" class="gtr">
+            <span class="glabel">{{ row.label }}</span>
+            <span class="glabel">{{ row.label }}</span>
+            <span class="gbase">{{ row.base.toFixed(4) }}</span>
+            <span class="gnew">{{ row.new.toFixed(4) }}</span>
+            <span class="gdiff" :class="row.new - row.base >= 0 ? 'up' : 'down'">
+              {{ (row.new - row.base >= 0 ? '+' : '') + (row.new - row.base).toFixed(4) }}
+            </span>
+            <span class="glimit" :class="row.new - row.base >= 0 ? 'up' : 'down'">
+              {{ (row.new - row.base >= 0 ? '+' : '') + (row.new - row.base).toFixed(4) }}
+            </span>
+          </div>
+        </div>
       </div>
-      <div class="matrix-wrap">
-        <table class="matrix-table">
-          <thead>
-            <tr>
-              <th>Price \ IV</th>
-              <th v-for="iv in IV_PCTS" :key="iv">{{ iv > 0 ? `+${iv}` : iv }}%</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="pricePct in PRICE_PCTS" :key="pricePct">
-              <td class="row-label">{{ pricePct > 0 ? `+${pricePct}` : pricePct }}%</td>
-              <td v-for="ivPct in IV_PCTS" :key="ivPct"
-                :style="cellStyle(state.result.heatMatrix.find(c => c.pricePct === pricePct && c.ivPct === ivPct)!)">
-                {{cellText(state.result.heatMatrix.find(c => c.pricePct === pricePct && c.ivPct === ivPct)!)}}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="matrix-legend">
-        <span class="legend safe">安全 &lt;40%</span>
-        <span class="legend warn">注意 40-70%</span>
-        <span class="legend danger">危险 70-100%</span>
-        <span class="legend liquid">爆仓 &gt;100%</span>
-      </div>
-    </div>
 
-    <!-- Alert -->
-    <el-alert
-      :title="alertMsg"
-      :type="isHighRisk ? 'error' : isWarning ? 'warning' : 'success'"
-      show-icon
-      :closable="false"
-    />
+      <!-- Heat Matrix -->
+      <div class="card heat-card">
+        <div class="card-title">二维压力测试矩阵</div>
+        <div class="matrix-meta">
+          <span>纵轴: 标的价格变动 (%)</span>
+          <span>横轴: IV 变动 (%)</span>
+          <span class="liquidated-count" v-if="liquidatedCount > 0">
+            🔴 {{ liquidatedCount }} 格爆仓
+          </span>
+        </div>
+        <div class="matrix-wrap">
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th>Price \ IV</th>
+                <th v-for="iv in IV_PCTS" :key="iv">{{ iv > 0 ? `+${iv}` : iv }}%</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="pricePct in PRICE_PCTS" :key="pricePct">
+                <td class="row-label">{{ pricePct > 0 ? `+${pricePct}` : pricePct }}%</td>
+                <td v-for="ivPct in IV_PCTS" :key="ivPct"
+                  :style="cellStyle(state.result.heatMatrix.find(c => c.pricePct === pricePct && c.ivPct === ivPct)!)">
+                  {{cellText(state.result.heatMatrix.find(c => c.pricePct === pricePct && c.ivPct === ivPct)!)}}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="matrix-legend">
+          <span class="legend safe">安全 &lt;40%</span>
+          <span class="legend warn">注意 40-70%</span>
+          <span class="legend danger">危险 70-100%</span>
+          <span class="legend liquid">爆仓 &gt;100%</span>
+        </div>
+      </div>
+
+      <!-- Alert -->
+      <el-alert :title="alertMsg" :type="isHighRisk ? 'error' : isWarning ? 'warning' : 'success'" show-icon
+        :closable="false" />
     </template>
   </div>
 </template>
