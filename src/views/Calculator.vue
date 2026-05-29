@@ -1,26 +1,9 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import Module1Context from './modules/Module1Context.vue'
-import Module2Sandbox from './modules/Module2Sandbox.vue'
-import Module3Evaluation from './modules/Module3Evaluation.vue'
 import { useRiskWorkspace } from '../composables/useRiskWorkspace'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const { health, prices, fetchHealth, fetchPrices } = useRiskWorkspace()
-
-function handleDataExplain() {
-  router.push('/explain')
-}
-
-function handleCalculator() {
-  router.push('/calculator')
-}
-
-onMounted(() => {
-  fetchHealth()
-  fetchPrices()
-})
+const { prices } = useRiskWorkspace()
 </script>
 
 <template>
@@ -30,37 +13,20 @@ onMounted(() => {
         <span class="logo-text">📊</span>
         <span class="title">Pre-trade Risk Workspace</span>
       </div>
-      <div class="header-actions">
-        <el-button type="primary" size="small" @click="handleDataExplain">数据说明</el-button>
-        <el-button type="primary" size="small" @click="handleCalculator">计算器</el-button>
-      </div>
       <div class="header-right">
-        <!-- {{ prices.data.data }} -->
-        <!-- 价格模块 -->
         <el-tag type="danger" size="small">BTC: {{ prices.data.data?.BTC ?? '--' }}</el-tag>
         <el-tag type="danger" size="small">ETH: {{ prices.data.data?.ETH ?? '--' }}</el-tag>
         <el-tag type="danger" size="small">SOL: {{ prices.data.data?.SOL ?? '--' }}</el-tag>
         <el-tag type="danger" size="small">LINK: {{ prices.data.data?.LINK ?? '--' }}</el-tag>
         <el-tag type="danger" size="small">CRV: {{ prices.data.data?.CRV ?? '--' }}</el-tag>
         <el-tag type="success" size="small">● LIVE</el-tag>
+        <el-button type="primary" size="small" plain @click="router.push('/')">返回工作台</el-button>
       </div>
     </header>
 
-    <div class="workspace-body">
-      <!-- Left: Context -->
-      <aside class="col col-context">
-        <Module1Context />
-      </aside>
-
-      <!-- Center: Sandbox -->
-      <main class="col col-sandbox">
-        <Module2Sandbox />
-      </main>
-
-      <!-- Right: Evaluation -->
-      <aside class="col col-eval">
-        <Module3Evaluation />
-      </aside>
+    <div class="calc-body">
+      <div class="page-title">计算器</div>
+      <p>建设中...</p>
     </div>
   </div>
 </template>
@@ -69,9 +35,9 @@ onMounted(() => {
 .workspace {
   display: flex;
   flex-direction: column;
-  /* height: 100vh; */
   overflow: hidden;
   background: var(--el-bg-color);
+  height: 100vh;
 }
 
 .workspace-header {
@@ -91,12 +57,6 @@ onMounted(() => {
   gap: 8px;
 }
 
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .logo-text {
   font-size: 18px;
 }
@@ -114,31 +74,17 @@ onMounted(() => {
   gap: 8px;
 }
 
-.workspace-body {
-  display: grid;
-  grid-template-columns: 1fr 2fr 1fr;
+.calc-body {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
+  padding: 20px 32px;
 }
 
-.col {
-  overflow: hidden;
-  border-right: 1px solid var(--el-border-color);
-}
-
-.col:last-child {
-  border-right: none;
-}
-
-.col-context {
-  background: var(--el-fill-color-lighter);
-}
-
-.col-sandbox {
-  background: var(--el-bg-color);
-}
-
-.col-eval {
-  background: var(--el-fill-color-lighter);
+.page-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--el-text-color-primary);
+  margin-bottom: 12px;
+  text-align: left;
 }
 </style>
