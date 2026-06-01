@@ -110,3 +110,18 @@ export interface IvRvTrendsResponse1 {
     }[]
   }[]
 }
+
+export interface AtmVolatilityConeResponse {
+  status: string
+  currency: string
+  cone_type: string
+  lookback_days: number
+  extracted_at_utc: string
+  data: {
+    name: string
+    points: {
+      x: string
+      y: string
+    }[]
+  }[]
+}
