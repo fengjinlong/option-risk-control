@@ -29,13 +29,7 @@ function updateChart(res: IvRvTrendsResponse1) {
   const firstCurve = curves.find(c => seriesNames.includes(c.name))
   const dates = (firstCurve?.points ?? []).map(p => formatDate(p.x))
 
-  // 最新值用于副标题
-  const latest = seriesNames.map(name => {
-    const curve = curves.find(c => c.name === name)
-    const pts = curve?.points ?? []
-    return pts.length ? parseFloat((parseFloat(pts[pts.length - 1].y) * 100).toFixed(2)) : null
-  })
-  const subtitle = seriesNames.map((n, i) => `${n}: ${latest[i] ?? '--'}%`).join(' | ')
+
 
   const series = seriesNames.map(name => {
     const curve = curves.find(c => c.name === name)
@@ -53,9 +47,8 @@ function updateChart(res: IvRvTrendsResponse1) {
   const option: echarts.EChartsOption = {
     title: {
       text: 'ETH IV vs RV',
-      // subtext: subtitle,
-      textStyle: { fontSize: 12, fontWeight: 600 },
-      subtextStyle: { fontSize: 10, color: '#666' },
+      textStyle: { fontSize: 14, fontWeight: 700 },
+      subtextStyle: { fontSize: 10, color: '#888' },
     },
     tooltip: {
       trigger: 'axis',
@@ -67,10 +60,10 @@ function updateChart(res: IvRvTrendsResponse1) {
     },
     legend: {
       data: series.map(s => s.name),
-      top: 0,
-      textStyle: { fontSize: 12 },
+      top: 46,
+      textStyle: { fontSize: 11 },
     },
-    grid: { left: 40, right: 20, top: 36, bottom: 30 },
+    grid: { left: 40, right: 20, top: 80, bottom: 30 },
     xAxis: {
       type: 'category',
       data: dates,
