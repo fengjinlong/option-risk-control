@@ -20,6 +20,8 @@ function go(path: string) {
       <el-button type="primary" size="small" @click="go('/')">工作台</el-button>
       <el-button type="primary" size="small" @click="go('/explain')">数据说明</el-button>
       <el-button type="primary" size="small" @click="go('/calculator')">计算器</el-button>
+      <!-- 开仓iv预警 -->
+      <el-button type="primary" size="small" @click="go('/iv-alert')">开仓IV预警</el-button>
     </div>
     <div class="header-right">
       <el-tag type="success" size="small">BTC IV%: {{ volRadar.data?.BTC?.iv_percentile_1y ?? '--' }}</el-tag>

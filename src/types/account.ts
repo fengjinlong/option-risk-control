@@ -96,3 +96,17 @@ export interface GlobalVolRadarResponse {
     status: string
   }>
 }
+
+export interface IvRvTrendsResponse1 {
+  status: string
+  currency: string
+  extracted_at_utc: string
+  total_curves: number
+  data: {
+    name: string
+    points: {
+      x: number
+      y: string
+    }[]
+  }[]
+}

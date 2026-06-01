@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import RiskWorkspace from '../views/RiskWorkspace.vue'
 import DataExplain from '../views/DataExplain.vue'
 import Calculator from '../views/Calculator.vue'
+import IVAlert from '../views/IVAlert.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -24,6 +25,11 @@ const router = createRouter({
       path: '/calculator',
       name: 'calculator',
       component: Calculator,
+    },
+    {
+      path: '/iv-alert',
+      name: 'iv-alert',
+      component: IVAlert,
     },
   ],
 })
