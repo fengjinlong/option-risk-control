@@ -81,3 +81,18 @@ export interface EthOptionsChainResponse {
   total_contracts: number
   data: EthOptionsChainApiItem[]
 }
+
+export interface GlobalVolRadarItem {
+  symbol: string
+  iv_percentile_1y: number
+}
+
+export interface GlobalVolRadarResponse {
+  status: string
+  data: Record<string, {
+    current_dvol: number
+    iv_percentile_1y: number
+    sample_days: number
+    status: string
+  }>
+}

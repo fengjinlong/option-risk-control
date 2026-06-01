@@ -1,28 +1,24 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRiskWorkspace } from '../composables/useRiskWorkspace'
-import { useRouter } from 'vue-router'
-
-const router = useRouter()
-const { prices } = useRiskWorkspace()
+import AppHeader from '../components/AppHeader.vue'
 
 // 输入
 const shortDays = ref(30)
-const shortIV  = ref(20)
+const shortIV = ref(20)
 const longDays = ref(60)
-const longIV   = ref(28)
+const longIV = ref(28)
 
 const showResult = ref(false)
 
 // 计算
-const longT  = computed(() => longDays.value / 365)
+const longT = computed(() => longDays.value / 365)
 const shortT = computed(() => shortDays.value / 365)
 
 const fwdIV = computed(() => {
   // 输入 IV 是百分数（28 = 28%），转为小数（0.28）参与计算
   const shortIV_d = shortIV.value / 100
-  const longIV_d  = longIV.value  / 100
-  const a = longIV_d  * longIV_d  * longT.value
+  const longIV_d = longIV.value / 100
+  const a = longIV_d * longIV_d * longT.value
   const b = shortIV_d * shortIV_d * shortT.value
   if (a < b) return null
   return Math.sqrt((a - b) / (longT.value - shortT.value)) * 100
@@ -33,6 +29,8 @@ const ratio = computed(() => {
   if (fwdIV.value === null) return null
   return fwdIV.value / longIV.value
 })
+
+const aa = ref(1)
 
 const diag = computed(() => {
   if (fwdIV.value === null) return { labels: [] as string[], colors: [] as string[] }
@@ -80,24 +78,7 @@ function calc() {
 
 <template>
   <div class="workspace">
-    <header class="workspace-header">
-      <div class="header-left">
-        <span class="logo-text">📊</span>
-        <span class="title">Pre-trade Risk Workspace</span>
-      </div>
-      <div class="header-actions">
-        <el-button type="primary" size="small" @click="router.push('/explain')">数据说明</el-button>
-        <el-button type="primary" size="small" plain @click="router.push('/')">返回工作台</el-button>
-      </div>
-      <div class="header-right">
-        <el-tag type="danger" size="small">BTC: {{ prices.data.data?.BTC ?? '--' }}</el-tag>
-        <el-tag type="danger" size="small">ETH: {{ prices.data.data?.ETH ?? '--' }}</el-tag>
-        <el-tag type="danger" size="small">SOL: {{ prices.data.data?.SOL ?? '--' }}</el-tag>
-        <el-tag type="danger" size="small">LINK: {{ prices.data.data?.LINK ?? '--' }}</el-tag>
-        <el-tag type="danger" size="small">CRV: {{ prices.data.data?.CRV ?? '--' }}</el-tag>
-        <el-tag type="success" size="small">● LIVE</el-tag>
-      </div>
-    </header>
+    <AppHeader />
 
     <div class="calc-body">
       <div class="page-title">波动率远期定价计算器</div>
@@ -147,7 +128,8 @@ function calc() {
             <div class="result-col">
               <div class="block-label">🧮 计算过程</div>
               <div class="formula-block">
-                <div class="formula-step">= sqrt( ({{ (longIV/100).toFixed(4) }}² × {{ longT.toFixed(4) }} − {{ (shortIV/100).toFixed(4) }}² × {{ shortT.toFixed(4) }}) / {{ (longT - shortT).toFixed(4) }} )</div>
+                <div class="formula-step">= sqrt( ({{ (longIV / 100).toFixed(4) }}² × {{ longT.toFixed(4) }} − {{
+                  (shortIV / 100).toFixed(4) }}² × {{ shortT.toFixed(4) }}) / {{ (longT - shortT).toFixed(4) }} )</div>
                 <div class="formula-final">= {{ fwdIV.toFixed(2) }}%</div>
               </div>
             </div>
@@ -163,13 +145,8 @@ function calc() {
           <div class="result-block conclusion">
             <div class="block-label">🚨 最终交易结论</div>
             <div class="block-content">
-              <el-tag
-                v-for="(label, i) in diag.labels"
-                :key="label"
-                :type="diag.colors[i]"
-                size="small"
-                class="conclusion-tag"
-              >
+              <el-tag v-for="(label, i) in diag.labels" :key="label" :type="diag.colors[i]" size="small"
+                class="conclusion-tag">
                 {{ label }}
               </el-tag>
               <p class="conclusion-desc">{{ diagDesc }}</p>
@@ -191,36 +168,41 @@ function calc() {
   height: 100vh;
 }
 
-.workspace-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  height: 44px;
-  background: var(--el-fill-color);
-  border-bottom: 1px solid var(--el-border-color);
-  flex-shrink: 0;
-}
-
-.header-left { display: flex; align-items: center; gap: 8px; }
-.logo-text { font-size: 18px; }
-.title { font-size: 13px; font-weight: 700; color: var(--el-text-color-primary); }
-.header-actions { display: flex; align-items: center; gap: 6px; }
-.header-right { display: flex; align-items: center; gap: 8px; }
-
 .calc-body {
   flex: 1;
   overflow-y: auto;
   padding: 16px 24px;
 }
 
-.page-title { font-size: 16px; font-weight: 700; color: var(--el-text-color-primary); margin-bottom: 12px; }
+.page-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--el-text-color-primary);
+  margin-bottom: 12px;
+}
 
-.section { margin-bottom: 16px; }
+.section {
+  margin-bottom: 16px;
+}
 
-.row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
-.field { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--el-text-color-secondary); }
-.field label { font-size: 11px; }
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+}
+
+.field label {
+  font-size: 11px;
+}
 
 /* 结果 */
 .result {
@@ -230,30 +212,102 @@ function calc() {
   padding: 14px;
 }
 
-.result-title { font-size: 14px; font-weight: 700; color: var(--el-text-color-primary); margin-bottom: 12px; }
+.result-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--el-text-color-primary);
+  margin-bottom: 12px;
+}
 
-.alert { font-size: 13px; color: #dc2626; font-weight: 600; }
+.alert {
+  font-size: 13px;
+  color: #dc2626;
+  font-weight: 600;
+}
 
-.result-row { display: flex; gap: 12px; margin-bottom: 14px; }
-.result-col { flex: 1; background: var(--el-bg-color); border: 1px solid var(--el-border-color); border-radius: 4px; padding: 10px; }
+.result-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+}
 
-.result-block { margin-bottom: 14px; }
-.result-block:last-child { margin-bottom: 0; }
+.result-col {
+  flex: 1;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
+  border-radius: 4px;
+  padding: 10px;
+}
 
-.block-label { font-size: 12px; font-weight: 700; color: var(--el-text-color-primary); margin-bottom: 6px; }
+.result-block {
+  margin-bottom: 14px;
+}
 
-.block-content { display: flex; flex-direction: column; gap: 4px; }
+.result-block:last-child {
+  margin-bottom: 0;
+}
 
-.data-row { display: flex; gap: 6px; font-size: 11px; color: var(--el-text-color-secondary); line-height: 1.7; }
-.data-row strong { color: var(--el-text-color-primary); }
+.block-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--el-text-color-primary);
+  margin-bottom: 6px;
+}
+
+.block-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.data-row {
+  display: flex;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.7;
+}
+
+.data-row strong {
+  color: var(--el-text-color-primary);
+}
 
 /* 公式 */
-.formula-block { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--el-bg-color); border: 1px solid var(--el-border-color); border-radius: 4px; padding: 8px 10px; color: var(--el-text-color-primary); }
-.formula-step { color: var(--el-text-color-secondary); margin-top: 4px; }
-.formula-final { color: #dc2626; font-weight: 700; margin-top: 6px; }
+.formula-block {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
+  border-radius: 4px;
+  padding: 8px 10px;
+  color: var(--el-text-color-primary);
+}
+
+.formula-step {
+  color: var(--el-text-color-secondary);
+  margin-top: 4px;
+}
+
+.formula-final {
+  color: #dc2626;
+  font-weight: 700;
+  margin-top: 6px;
+}
 
 /* 结论 */
-.conclusion-tag { margin-right: 6px; margin-bottom: 6px; }
-.conclusion-desc { font-size: 12px; color: var(--el-text-color-regular); margin-top: 4px; line-height: 1.7; }
-.conclusion-desc.arb { color: #d97706; }
+.conclusion-tag {
+  margin-right: 6px;
+  margin-bottom: 6px;
+}
+
+.conclusion-desc {
+  font-size: 12px;
+  color: var(--el-text-color-regular);
+  margin-top: 4px;
+  line-height: 1.7;
+}
+
+.conclusion-desc.arb {
+  color: #d97706;
+}
 </style>

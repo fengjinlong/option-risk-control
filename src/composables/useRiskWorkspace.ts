@@ -225,6 +225,34 @@ async function fetchPrices() {
   }
 }
 
+// ── global vol radar (IV percentile) state ─────────────────────────────────────
+type VolRadarData = Record<string, {
+  current_dvol: number
+  iv_percentile_1y: number
+  sample_days: number
+  status: string
+}>
+
+interface VolRadarState {
+  loading: boolean
+  data: VolRadarData
+}
+
+const volRadarState = reactive<VolRadarState>({
+  loading: false,
+  data: {},
+})
+
+async function fetchVolRadar() {
+  volRadarState.loading = true
+  try {
+    const res = await request.get<import('../types/account').GlobalVolRadarResponse>('/api/v1/market/global-vol-radar')
+    volRadarState.data = (res as any).data ?? {}
+  } finally {
+    volRadarState.loading = false
+  }
+}
+
 // ── positions / Greeks state ──────────────────────────────────────────────────
 interface PositionsState {
   loading: boolean
@@ -425,6 +453,9 @@ export function useRiskWorkspace() {
     groupsGreeks,
     commitSandbox,
     imDelta: readonly(imDeltaState),
+    // vol radar
+    volRadar: readonly(volRadarState),
+    fetchVolRadar,
     // simulation
     state: readonly(state),
   }
