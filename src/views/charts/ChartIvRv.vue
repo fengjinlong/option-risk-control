@@ -45,7 +45,7 @@ function updateChart(res: IvRvTrendsResponse1) {
   })
 
   ivRvChart.value.setOption({
-    title: { text: 'ETH IV vs RV', textStyle: { fontSize: 13, fontWeight: 700 } },
+    title: { text: 'ETH IV vs RV', top: 0, textStyle: { fontSize: 13, fontWeight: 700 } },
     tooltip: {
       trigger: 'axis',
       textStyle: { align: 'left' },
@@ -55,10 +55,10 @@ function updateChart(res: IvRvTrendsResponse1) {
         return `${x}<br/>${rows}`
       },
     },
-    legend: { data: series.map(s => s.name), top: 2, type: 'scroll', textStyle: { fontSize: 10 } },
-    grid: { left: 40, right: 20, top: 36, bottom: 24 },
+    legend: { data: series.map(s => s.name), top: 24, type: 'scroll', textStyle: { fontSize: 10 } },
+    grid: { left: 40, right: 20, top: 52, bottom: 24 },
     xAxis: { type: 'category', data: xData.map(ts => formatDate(ts)), axisLabel: { fontSize: 10 } },
-    yAxis: { type: 'value', name: '%', scale: true, axisLabel: { fontSize: 10, formatter: '{value}%' } },
+    yAxis: { type: 'value', name: '', scale: true, axisLabel: { fontSize: 10, formatter: '{value}%' } },
     series,
   })
 }

@@ -55,7 +55,7 @@ function updateChart(res: AtmVolatilityConeResponse) {
     },
     grid: { left: 40, right: 20, top: 80, bottom: 24 },
     xAxis: { type: 'category', data: tenors, axisLabel: { fontSize: 10 } },
-    yAxis: { type: 'value', name: '%', scale: true, axisLabel: { fontSize: 10, formatter: '{value}%' } },
+    yAxis: { type: 'value', name: '', scale: true, axisLabel: { fontSize: 10, formatter: '{value}%' } },
     series: series.map(s => ({
       name: s.name,
       type: 'line' as const,
