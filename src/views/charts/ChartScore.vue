@@ -267,14 +267,14 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
             {{ side === 'seller' ? '卖方' : '买方' }}评分 · {{ part1CurrentStatus.label }}
           </div>
 
-          <div class="audit-items">
+          <div class="audit-items compact">
             <!-- Item 1: IV-RV Gap -->
             <div class="audit-item">
               <div class="item-label">1. 行权日 IV-RV 价差</div>
               <el-radio-group
                 :model-value="ivScoreData.ivRvGap"
                 @update:model-value="ivScoreData.ivRvGap = $event"
-                class="radio-cards"
+                class="radio-row"
               >
                 <el-radio :value="7">A. 大于 5% → 卖方 +7</el-radio>
                 <el-radio :value="10">B. 大于 10% → 卖方 +10</el-radio>
@@ -288,7 +288,7 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
               <el-radio-group
                 :model-value="ivScoreData.ivPercentile"
                 @update:model-value="ivScoreData.ivPercentile = $event"
-                class="radio-cards"
+                class="radio-row"
               >
                 <el-radio value="seller_a">A. 50% ~ 80% → 卖方 +10</el-radio>
                 <el-radio value="seller_b">B. 大于 90% → 卖方 -20 ⚠️</el-radio>
@@ -302,7 +302,7 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
               <el-radio-group
                 :model-value="ivScoreData.termStructure"
                 @update:model-value="ivScoreData.termStructure = $event"
-                class="radio-cards"
+                class="radio-row"
               >
                 <el-radio :value="10">A. 远期升水（Contango）→ 卖方 +10</el-radio>
                 <el-radio :value="-10">B. 远期贴水（Backwardation）→ 买方 +10</el-radio>
@@ -315,7 +315,7 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
               <el-radio-group
                 :model-value="ivScoreData.skew"
                 @update:model-value="ivScoreData.skew = $event"
-                class="radio-cards"
+                class="radio-row"
               >
                 <el-radio value="seller_put">A. 数值 &gt; 0 且计划卖 Put → 卖方 +10</el-radio>
                 <el-radio value="seller_call">B. 数值 &lt; 0 且计划卖 Call → 卖方 +10</el-radio>
@@ -353,14 +353,14 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
             {{ part2Mode.advice }}
           </div>
 
-          <div class="audit-items">
+          <div class="audit-items compact">
             <!-- Weight A: Confidence -->
             <div class="audit-item">
               <div class="item-label">A. 主观信心强度 <span class="weight-tag">权重 40 分</span></div>
               <el-radio-group
                 :model-value="strategyData.confidence"
                 @update:model-value="strategyData.confidence = $event"
-                class="radio-cards"
+                class="radio-row"
               >
                 <el-radio :value="40">40分 · 极其强烈：明确日线突破 + 重大基本面支撑（建议：单腿，追求爆发力）</el-radio>
                 <el-radio :value="20">20分 · 中等经营：趋势在但上方有阻力，阴涨阶段（建议：双腿，降低损耗）</el-radio>
@@ -374,7 +374,7 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
               <el-radio-group
                 :model-value="strategyData.ivCost"
                 @update:model-value="strategyData.ivCost = $event"
-                class="radio-cards"
+                class="radio-row"
               >
                 <el-radio :value="30">30分 · IV 极便宜（IV 百分位 &lt; 25%）：建议买方单腿</el-radio>
                 <el-radio :value="15">15分 · IV 中等（IV 百分位 25% ~ 75%）：必须双腿价差</el-radio>
@@ -388,7 +388,7 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
               <el-radio-group
                 :model-value="strategyData.targetSpace"
                 @update:model-value="strategyData.targetSpace = $event"
-                class="radio-cards"
+                class="radio-row"
               >
                 <el-radio :value="30">30分 · 星辰大海，上方无阻力：单腿，不封死盈利上限</el-radio>
                 <el-radio :value="10">10分 · 阶梯运动，阻力位明显：双腿垂直价差</el-radio>
@@ -411,14 +411,14 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
             {{ part3Action.sub }}
           </div>
 
-          <div class="audit-items">
+          <div class="audit-items compact">
             <!-- Cost Audit -->
             <div class="audit-item">
               <div class="item-label">1. 成本审计：BP 价差量化 <span class="weight-tag">权重 15 分</span></div>
               <el-radio-group
                 :model-value="liquidityData.bidAskSpread"
                 @update:model-value="liquidityData.bidAskSpread = $event"
-                class="radio-cards"
+                class="radio-row"
               >
                 <el-radio :value="15">15分 · 15 BP 以内：机构级流动性极佳</el-radio>
                 <el-radio :value="10">10分 · 15 ~ 30 BP：标准入场区，甜点位</el-radio>
@@ -433,7 +433,7 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
               <el-radio-group
                 :model-value="liquidityData.depthRatio"
                 @update:model-value="liquidityData.depthRatio = $event"
-                class="radio-cards"
+                class="radio-row"
               >
                 <el-radio :value="10">10分 · 比率 &gt; 10倍：极深，大单不引盘口异动</el-radio>
                 <el-radio :value="7">7分 · 5 ~ 10倍：稳健，支持快速一次性成交</el-radio>
@@ -448,7 +448,7 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
               <el-radio-group
                 :model-value="liquidityData.oiVolume"
                 @update:model-value="liquidityData.oiVolume = $event"
-                class="radio-cards"
+                class="radio-row"
               >
                 <el-radio :value="5">5分 · OI &gt; 500 枚：密集活跃区，无滞销风险</el-radio>
                 <el-radio :value="3">3分 · OI 100 ~ 500 枚：流动性尚可</el-radio>
@@ -886,9 +886,15 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   flex-direction: column;
   gap: 16px;
 }
+.audit-items.compact {
+  gap: 10px;
+}
 .audit-item {
   border-bottom: 1px solid #f0f2f5;
-  padding-bottom: 16px;
+  padding-bottom: 12px;
+}
+.audit-items.compact .audit-item {
+  padding-bottom: 10px;
 }
 .audit-item:last-child {
   border-bottom: none;
@@ -898,8 +904,11 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   font-size: 13px;
   font-weight: 600;
   color: #303133;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   line-height: 1.4;
+}
+.audit-items.compact .item-label {
+  margin-bottom: 6px;
 }
 .weight-tag {
   font-size: 11px;
@@ -908,7 +917,38 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   margin-left: 6px;
 }
 
-/* Radio Cards */
+/* Radio Row (horizontal wrap) */
+.radio-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.radio-row :deep(.el-radio) {
+  margin-right: 0;
+  background: #fafafa;
+  border: 1.5px solid #e4e7ed;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #606266;
+  transition: all 0.2s;
+  line-height: 1.4;
+}
+.radio-row :deep(.el-radio:hover) {
+  border-color: #409eff;
+  background: #ecf5ff;
+}
+.radio-row :deep(.el-radio.is-checked) {
+  border-color: #409eff;
+  background: #ecf5ff;
+  color: #409eff;
+}
+.radio-row :deep(.el-radio__label) {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Radio Cards (vertical list) */
 .radio-cards {
   display: flex;
   flex-direction: column;
