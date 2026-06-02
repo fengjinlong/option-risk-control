@@ -3,6 +3,7 @@ import AppHeader from '../components/AppHeader.vue'
 import ChartIvRv from './charts/ChartIvRv.vue'
 import ChartVolCone from './charts/ChartVolCone.vue'
 import Chart25dRr from './charts/Chart25dRr.vue'
+import Chart25dFly from './charts/Chart25dFly.vue'
 </script>
 
 <template>
@@ -14,6 +15,7 @@ import Chart25dRr from './charts/Chart25dRr.vue'
         <ChartVolCone />
         <ChartIvRv />
         <Chart25dRr />
+        <Chart25dFly />
       </div>
     </div>
   </div>
