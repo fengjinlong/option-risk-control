@@ -96,7 +96,7 @@ function calcLegGreeks(leg: Leg) {
   }
 }
 
-function calc评估(legs: Leg[], equity: number, mm: number): Risk评估Result {
+function calccc(legs: Leg[], equity: number, mm: number): Risk评估Result {
   const mmDelta = legs.reduce((s, l) => s + calcLegMM(l), 0)
 
   const ng = legs.reduce(
@@ -364,7 +364,7 @@ const state = reactive<WorkspaceState>({
   vega: MOCK_GREEKS.vega,
   theta: MOCK_GREEKS.theta,
   legs: [],
-  result: calc评估([], 0, 0),
+  result: calccc([], 0, 0),
   debounceTimer: null,
 })
 
@@ -382,7 +382,7 @@ const groupsGreeks = computed<GroupsGreeks>(() => {
     const dir = g.direction === 'buy' ? 1 : -1
     result.delta += dir * opt.greeks.delta * g.size
     result.gamma += dir * opt.greeks.gamma * g.size
-    result.vega  += dir * opt.greeks.vega  * g.size
+    result.vega += dir * opt.greeks.vega * g.size
     result.theta += dir * opt.greeks.theta * g.size
   }
   return result
@@ -420,7 +420,7 @@ function resetGroups() {
 function schedulepg() {
   if (state.debounceTimer) clearTimeout(state.debounceTimer)
   state.debounceTimer = setTimeout(() => {
-    state.result = calc评估(state.legs, healthState.equity, healthState.mm)
+    state.result = calccc(state.legs, healthState.equity, healthState.mm)
     // sync Greeks
     state.delta = MOCK_GREEKS.delta
     state.gamma = MOCK_GREEKS.gamma
