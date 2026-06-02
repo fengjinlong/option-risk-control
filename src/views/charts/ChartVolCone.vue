@@ -32,7 +32,7 @@ function updateChart(res: AtmVolatilityConeResponse) {
     { name: '25%', y: getY('25%'), color: '#faad14', dashed: false },
     { name: 'Minimum', y: getY('Minimum'), color: '#d9d9d9', dashed: false },
     { name: 'Current', y: currentY, color: '#ff4da2', dashed: true },
-  ]
+  ].sort((a, b) => (b.y[b.y.length - 1] ?? 0) - (a.y[a.y.length - 1] ?? 0))
 
   coneChart.value.setOption({
     title: {
@@ -61,6 +61,7 @@ function updateChart(res: AtmVolatilityConeResponse) {
       type: 'line' as const,
       data: s.y,
       smooth: true,
+      color: s.color,
       lineStyle: { color: s.color, type: s.dashed ? ('dashed' as const) : ('solid' as const) },
     })),
   })

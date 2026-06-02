@@ -32,7 +32,7 @@ function updateChart(data: SkewVolConeItem[]) {
     { name: '25%', y: getY('25%'), color: '#faad14', dashed: false },
     { name: 'Minimum', y: getY('Minimum'), color: '#b6d634', dashed: false },
     { name: 'Current', y: currentY, color: '#ff4da2', dashed: true },
-  ]
+  ].sort((a, b) => (b.y[b.y.length - 1] ?? 0) - (a.y[a.y.length - 1] ?? 0))
 
   skewChart.value.setOption({
     title: {
@@ -45,7 +45,8 @@ function updateChart(data: SkewVolConeItem[]) {
       textStyle: { align: 'left' },
       formatter: (params: any[]) => {
         const t = params[0]?.axisValue
-        const rows = params.map(p => `${p.marker} ${p.seriesName}: ${p.value}%`).join('<br/>')
+        const sorted = [...params].sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
+        const rows = sorted.map(p => `${p.marker} ${p.seriesName}: ${p.value}%`).join('<br/>')
         return `${t}<br/>${rows}`
       },
     },
@@ -61,6 +62,7 @@ function updateChart(data: SkewVolConeItem[]) {
       name: s.name,
       type: 'line' as const,
       data: s.y,
+      color: s.color,
       smooth: true,
       lineStyle: { color: s.color, type: s.dashed ? ('dashed' as const) : ('solid' as const) },
     })),

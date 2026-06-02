@@ -125,3 +125,16 @@ export interface AtmVolatilityConeResponse {
     }[]
   }[]
 }
+
+export interface TermStructureResponse {
+  succ: boolean; // 网关层业务处理状态标识（成功时固定返回 true）
+  code: number; // 业务状态码（服务端成功处理时固定返回 0）
+  message: string; // 错误回执或状态文本提示（请求成功时为空字符串 ""）
+  value: {
+    name: 'ATM' | '5D Put' | '10D Put' | '25D Put' | '5D Call' | '10D Call' | '25D Call' | string; // 波动率期限曲线的微观 Delta 偏斜特征维度（ATM 为标准平值曲线，5D/10D/25D Put/Call 分别代表不同行权偏斜度的虚值期权隐含波动率线）
+    points: {
+      x: string; // 坐标轴横轴：标准的期权物理交割到期日字符串（如 "3JUN26", "26JUN26", "26MAR27"，前端渲染前可结合 DTE 算法转化为到期天数轴）
+      y: string; // 坐标轴纵轴：该到期日及特定 Delta 维度下的绝对隐含波动率数值（如 "0.5744" 代表 57.44% IV，前端使用前需 parseFloat）
+    }[]; // 100%强关联嵌套：当前 Delta 偏斜曲线下沿着时间轴分布的存续到期交割点阵数组
+  }[]; // 全嵌套树状全期限全偏斜隐含波动率矩阵曲线数组（前端直接循环此数组即可渲染出包含多条偏斜梯度的期限结构全景走势图）
+}
