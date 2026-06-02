@@ -5,6 +5,7 @@ import ChartVolCone from './charts/ChartVolCone.vue'
 import Chart25dRr from './charts/Chart25dRr.vue'
 import Chart25dFly from './charts/Chart25dFly.vue'
 import ChartTermStructure from './charts/ChartTermStructure.vue'
+import ChartScore from './charts/ChartScore.vue'
 </script>
 
 <template>
@@ -18,7 +19,9 @@ import ChartTermStructure from './charts/ChartTermStructure.vue'
         <Chart25dRr />
         <Chart25dFly />
         <ChartTermStructure />
+        <!-- 评分 -->
       </div>
+      <ChartScore />
     </div>
   </div>
 </template>
