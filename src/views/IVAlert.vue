@@ -2,6 +2,7 @@
 import AppHeader from '../components/AppHeader.vue'
 import ChartIvRv from './charts/ChartIvRv.vue'
 import ChartVolCone from './charts/ChartVolCone.vue'
+import Chart25dRr from './charts/Chart25dRr.vue'
 </script>
 
 <template>
@@ -10,8 +11,9 @@ import ChartVolCone from './charts/ChartVolCone.vue'
 
     <div class="alert-body">
       <div class="charts-grid">
-        <ChartIvRv />
         <ChartVolCone />
+        <ChartIvRv />
+        <Chart25dRr />
       </div>
     </div>
   </div>

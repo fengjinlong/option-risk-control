@@ -2,41 +2,41 @@
 import { ref, shallowRef, onMounted, onUnmounted } from 'vue'
 import * as echarts from 'echarts'
 import request from '../../utils/request'
-import type { AtmVolatilityConeResponse } from '../../types/account'
 
 const chartRef = ref<HTMLDivElement>()
-const coneChart = shallowRef<echarts.ECharts | null>(null)
+const skewChart = shallowRef<echarts.ECharts | null>(null)
 const loading = ref(false)
 
-function updateChart(res: AtmVolatilityConeResponse) {
-  if (!coneChart.value) return
+interface SkewVolConeItem {
+  name: string
+  points: { x: string; y: string }[]
+}
 
-  const data = res.data
-  // x 轴取第一条曲线的时间点
+function updateChart(data: SkewVolConeItem[]) {
+  if (!skewChart.value) return
+
   const tenors = (data[0]?.points ?? []).map(p => p.x)
 
-  // 按 name 查曲线，取 y 值（乘100转百分比）
   const getY = (name: string) => {
     const curve = data.find(d => d.name === name)
     return (curve?.points ?? []).map(p => parseFloat((parseFloat(p.y) * 100).toFixed(2)))
   }
 
-  // Current 曲线的最后一个值
   const currentY = getY('Current')
   const lastLive = currentY[currentY.length - 1] ?? '--'
 
   const series = [
-    { name: 'Maximum', y: getY('Maximum'), color: '#d9d9d9', dashed: false },
+    { name: 'Maximum', y: getY('Maximum'), color: '#5070dd', dashed: false },
     { name: '75%', y: getY('75%'), color: '#73d13d', dashed: false },
     { name: 'Median', y: getY('Median'), color: '#1890ff', dashed: false },
     { name: '25%', y: getY('25%'), color: '#faad14', dashed: false },
-    { name: 'Minimum', y: getY('Minimum'), color: '#d9d9d9', dashed: false },
+    { name: 'Minimum', y: getY('Minimum'), color: '#b6d634', dashed: false },
     { name: 'Current', y: currentY, color: '#ff4da2', dashed: true },
   ]
 
-  coneChart.value.setOption({
+  skewChart.value.setOption({
     title: {
-      text: 'ETH ATM Volatility Cone 90D',
+      text: 'ETH 25D RR Volatility Cone 6M',
       textStyle: { fontSize: 13, fontWeight: 700 },
       subtextStyle: { fontSize: 10, color: '#f5d126' },
     },
@@ -53,6 +53,7 @@ function updateChart(res: AtmVolatilityConeResponse) {
       data: series.map(s => s.name),
       top: 46, textStyle: { fontSize: 10 },
     },
+    // grid: { left: 40, right: 20, top: 52, bottom: 24 },
     grid: { left: 40, right: 20, top: 80, bottom: 24 },
     xAxis: { type: 'category', data: tenors, axisLabel: { fontSize: 10 } },
     yAxis: { type: 'value', name: '', scale: true, axisLabel: { fontSize: 10, formatter: '{value}%' } },
@@ -69,26 +70,30 @@ function updateChart(res: AtmVolatilityConeResponse) {
 async function fetchData() {
   loading.value = true
   try {
-    const res = await request.get<AtmVolatilityConeResponse>('/api/v1/market/atm-vol-cone')
-    updateChart(res as unknown as AtmVolatilityConeResponse)
+    const res = await request.get<{ succ: boolean; value: SkewVolConeItem[] }>('/api/v1/market/skew-vol-cone', {
+      params: { currency: 'ETH', type: '25d-rr' },
+    })
+    if (res.succ && res.value) {
+      updateChart(res.value)
+    }
   } finally {
     loading.value = false
   }
 }
 
 function onResize() {
-  coneChart.value?.resize()
+  skewChart.value?.resize()
 }
 
 onMounted(() => {
   if (!chartRef.value) return
-  coneChart.value = echarts.init(chartRef.value)
+  skewChart.value = echarts.init(chartRef.value)
   fetchData()
   window.addEventListener('resize', onResize)
 })
 onUnmounted(() => {
   window.removeEventListener('resize', onResize)
-  coneChart.value?.dispose()
+  skewChart.value?.dispose()
 })
 </script>
 
