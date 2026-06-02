@@ -4,6 +4,7 @@ import ChartIvRv from './charts/ChartIvRv.vue'
 import ChartVolCone from './charts/ChartVolCone.vue'
 import Chart25dRr from './charts/Chart25dRr.vue'
 import Chart25dFly from './charts/Chart25dFly.vue'
+import ChartTermStructure from './charts/ChartTermStructure.vue'
 </script>
 
 <template>
@@ -16,6 +17,7 @@ import Chart25dFly from './charts/Chart25dFly.vue'
         <ChartIvRv />
         <Chart25dRr />
         <Chart25dFly />
+        <ChartTermStructure />
       </div>
     </div>
   </div>
