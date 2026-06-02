@@ -921,31 +921,7 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
 .radio-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-}
-.radio-row :deep(.el-radio) {
-  margin-right: 0;
-  background: #fafafa;
-  border: 1.5px solid #e4e7ed;
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 12px;
-  color: #606266;
-  transition: all 0.2s;
-  line-height: 1.4;
-}
-.radio-row :deep(.el-radio:hover) {
-  border-color: #409eff;
-  background: #ecf5ff;
-}
-.radio-row :deep(.el-radio.is-checked) {
-  border-color: #409eff;
-  background: #ecf5ff;
-  color: #409eff;
-}
-.radio-row :deep(.el-radio__label) {
-  font-size: 12px;
-  white-space: nowrap;
+  gap: 8px;
 }
 
 /* Radio Cards (vertical list) */
@@ -954,63 +930,6 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   flex-direction: column;
   gap: 8px;
 }
-.radio-cards :deep(.el-radio) {
-  margin-right: 0;
-  background: #fafafa;
-  border: 1.5px solid #e4e7ed;
-  border-radius: 6px;
-  padding: 8px 12px;
-  line-height: 1.4;
-  font-size: 13px;
-  color: #303133;
-  transition: all 0.2s;
-}
-.radio-cards :deep(.el-radio:hover) {
-  border-color: #409eff;
-  background: #ecf5ff;
-}
-.radio-cards :deep(.el-radio.is-checked) {
-  border-color: #409eff;
-  background: #ecf5ff;
-  color: #409eff;
-}
-.radio-cards :deep(.el-radio__label) {
-  font-size: 13px;
-  white-space: normal;
-  line-height: 1.5;
-}
-.radio-cards :deep(.el-checkbox) {
-  margin-right: 0;
-  background: #fafafa;
-  border: 1.5px solid #e4e7ed;
-  border-radius: 6px;
-  padding: 8px 12px;
-  line-height: 1.4;
-  font-size: 13px;
-  color: #303133;
-  transition: all 0.2s;
-}
-.radio-cards :deep(.el-checkbox:hover) {
-  border-color: #409eff;
-  background: #ecf5ff;
-}
-.radio-cards :deep(.el-checkbox.is-checked) {
-  border-color: #409eff;
-  background: #ecf5ff;
-  color: #409eff;
-}
-.radio-cards :deep(.el-checkbox__label) {
-  font-size: 13px;
-  white-space: normal;
-  line-height: 1.5;
-}
-.hint-tag {
-  font-size: 11px;
-  color: #909399;
-  font-weight: 400;
-  margin-left: 6px;
-}
-
 /* ─── Part 1 Assessment Row ──────────────────────────────────────────────── */
 .assessment-row {
   display: flex;
