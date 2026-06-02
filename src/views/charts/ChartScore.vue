@@ -166,18 +166,34 @@ const finalVerdict = computed(() => {
   return { total, label, color, mode, action, status, p1, p2, p3, side: s }
 })
 
-// ─── Report Modal ─────────────────────────────────────────────────────────────
+// ─── Report Panel ──────────────────────────────────────────────────────────
 const showReport = ref(false)
-const reportRef = ref<HTMLDivElement>()
 
-function openReport() {
-  showReport.value = true
-  setTimeout(() => reportRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
-}
-
-function closeReport() {
-  showReport.value = false
-}
+// ─── Template Helpers ──────────────────────────────────────────────────────
+const skewLabel = computed(() => {
+  const s = ivScoreData.value.skew
+  if (s === 'seller_put' || s === 'buyer_call') return '正向偏斜（Put 端 IV 更高）'
+  if (s === 'seller_call' || s === 'buyer_put') return '负向偏斜（Call 端 IV 更高）'
+  return '偏斜未定义'
+})
+const termLabel = computed(() =>
+  ivScoreData.value.termStructure !== null && ivScoreData.value.termStructure > 0
+    ? 'Contango（升水）有利于卖方收取时间价值'
+    : 'Backwardation（贴水）表明近期恐慌溢价抬升'
+)
+const ivPercentileLabel = computed(() => {
+  const p = ivScoreData.value.ivPercentile
+  if (p === 'seller_a') return '有利于卖方的溢价压缩区间'
+  if (p === 'seller_b') return '极端高估，IV 随时可能崩跌，负分警示'
+  if (p === 'buyer_c') return 'IV 极低，买方天堂'
+  return ''
+})
+const ivCostWarning = computed(() =>
+  strategyData.value.ivCost === 30 ? 'IV 极便宜，Vega 敞口巨大，轻仓买入可在 IV 扩张时享受利润非线性增长。' : ''
+)
+const targetSpaceWarning = computed(() =>
+  strategyData.value.targetSpace === 0 ? '区间震荡行情下买入期权，Theta 会持续抽走权利金，需严格控制持仓周期。' : ''
+)
 
 // ─── ECharts Init ──────────────────────────────────────────────────────────────
 function initRadar() {
@@ -234,16 +250,10 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
     <div class="side-toggle-row">
       <div class="section-label">审计立场</div>
       <div class="side-toggle">
-        <button
-          :class="['toggle-btn', { active: side === 'seller' }]"
-          @click="side = 'seller'"
-        >
+        <button :class="['toggle-btn', { active: side === 'seller' }]" @click="side = 'seller'">
           🐻 卖方（做空波动率）
         </button>
-        <button
-          :class="['toggle-btn', { active: side === 'buyer' }]"
-          @click="side = 'buyer'"
-        >
+        <button :class="['toggle-btn', { active: side === 'buyer' }]" @click="side = 'buyer'">
           🐂 买方（做多波动率）
         </button>
       </div>
@@ -271,11 +281,8 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
             <!-- Item 1: IV-RV Gap -->
             <div class="audit-item">
               <div class="item-label">1. 行权日 IV-RV 价差</div>
-              <el-radio-group
-                :model-value="ivScoreData.ivRvGap"
-                @update:model-value="ivScoreData.ivRvGap = $event"
-                class="radio-row"
-              >
+              <el-radio-group :model-value="ivScoreData.ivRvGap" @update:model-value="ivScoreData.ivRvGap = $event"
+                class="radio-row">
                 <el-radio :value="7">A. 大于 5% → 卖方 +7</el-radio>
                 <el-radio :value="10">B. 大于 10% → 卖方 +10</el-radio>
                 <el-radio :value="-10">C. 小于 0% → 买方 +10</el-radio>
@@ -285,11 +292,8 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
             <!-- Item 2: IV Percentile -->
             <div class="audit-item">
               <div class="item-label">2. 行权日波动率锥 IV 百分位</div>
-              <el-radio-group
-                :model-value="ivScoreData.ivPercentile"
-                @update:model-value="ivScoreData.ivPercentile = $event"
-                class="radio-row"
-              >
+              <el-radio-group :model-value="ivScoreData.ivPercentile"
+                @update:model-value="ivScoreData.ivPercentile = $event" class="radio-row">
                 <el-radio value="seller_a">A. 50% ~ 80% → 卖方 +10</el-radio>
                 <el-radio value="seller_b">B. 大于 90% → 卖方 -20 ⚠️</el-radio>
                 <el-radio value="buyer_c">C. 小于 25% → 买方 +10</el-radio>
@@ -299,11 +303,8 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
             <!-- Item 3: Term Structure -->
             <div class="audit-item">
               <div class="item-label">3. 期限结构 Term Structure</div>
-              <el-radio-group
-                :model-value="ivScoreData.termStructure"
-                @update:model-value="ivScoreData.termStructure = $event"
-                class="radio-row"
-              >
+              <el-radio-group :model-value="ivScoreData.termStructure"
+                @update:model-value="ivScoreData.termStructure = $event" class="radio-row">
                 <el-radio :value="10">A. 远期升水（Contango）→ 卖方 +10</el-radio>
                 <el-radio :value="-10">B. 远期贴水（Backwardation）→ 买方 +10</el-radio>
               </el-radio-group>
@@ -312,11 +313,8 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
             <!-- Item 4: Skew -->
             <div class="audit-item">
               <div class="item-label">4. 微笑曲面 Skew（25D Put - 25D Call）</div>
-              <el-radio-group
-                :model-value="ivScoreData.skew"
-                @update:model-value="ivScoreData.skew = $event"
-                class="radio-row"
-              >
+              <el-radio-group :model-value="ivScoreData.skew" @update:model-value="ivScoreData.skew = $event"
+                class="radio-row">
                 <el-radio value="seller_put">A. 数值 &gt; 0 且计划卖 Put → 卖方 +10</el-radio>
                 <el-radio value="seller_call">B. 数值 &lt; 0 且计划卖 Call → 卖方 +10</el-radio>
                 <el-radio value="buyer_call">C. 数值 &gt; 0 且计划买 Call → 买方 +10</el-radio>
@@ -357,11 +355,8 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
             <!-- Weight A: Confidence -->
             <div class="audit-item">
               <div class="item-label">A. 主观信心强度 <span class="weight-tag">权重 40 分</span></div>
-              <el-radio-group
-                :model-value="strategyData.confidence"
-                @update:model-value="strategyData.confidence = $event"
-                class="radio-row"
-              >
+              <el-radio-group :model-value="strategyData.confidence"
+                @update:model-value="strategyData.confidence = $event" class="radio-row">
                 <el-radio :value="40">40分 · 极其强烈：明确日线突破 + 重大基本面支撑（建议：单腿，追求爆发力）</el-radio>
                 <el-radio :value="20">20分 · 中等经营：趋势在但上方有阻力，阴涨阶段（建议：双腿，降低损耗）</el-radio>
                 <el-radio :value="10">10分 · 试探性：感觉要变盘但信号不明显（建议：三/四腿组合，锁死风险）</el-radio>
@@ -371,11 +366,8 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
             <!-- Weight B: IV Cost -->
             <div class="audit-item">
               <div class="item-label">B. IV 成本定价 <span class="weight-tag">权重 30 分</span></div>
-              <el-radio-group
-                :model-value="strategyData.ivCost"
-                @update:model-value="strategyData.ivCost = $event"
-                class="radio-row"
-              >
+              <el-radio-group :model-value="strategyData.ivCost" @update:model-value="strategyData.ivCost = $event"
+                class="radio-row">
                 <el-radio :value="30">30分 · IV 极便宜（IV 百分位 &lt; 25%）：建议买方单腿</el-radio>
                 <el-radio :value="15">15分 · IV 中等（IV 百分位 25% ~ 75%）：必须双腿价差</el-radio>
                 <el-radio :value="0">0分 · IV 极贵（IV 百分位 &gt; 75%）：严禁裸买，做卖方或铁鹰/铁蝶</el-radio>
@@ -385,11 +377,8 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
             <!-- Weight C: Target Space -->
             <div class="audit-item">
               <div class="item-label">C. 目标空间审计 <span class="weight-tag">权重 30 分</span></div>
-              <el-radio-group
-                :model-value="strategyData.targetSpace"
-                @update:model-value="strategyData.targetSpace = $event"
-                class="radio-row"
-              >
+              <el-radio-group :model-value="strategyData.targetSpace"
+                @update:model-value="strategyData.targetSpace = $event" class="radio-row">
                 <el-radio :value="30">30分 · 星辰大海，上方无阻力：单腿，不封死盈利上限</el-radio>
                 <el-radio :value="10">10分 · 阶梯运动，阻力位明显：双腿垂直价差</el-radio>
                 <el-radio :value="0">0分 · 区间震荡，鸟笼行情：三/四腿，两端卖出锁死利润</el-radio>
@@ -415,11 +404,8 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
             <!-- Cost Audit -->
             <div class="audit-item">
               <div class="item-label">1. 成本审计：BP 价差量化 <span class="weight-tag">权重 15 分</span></div>
-              <el-radio-group
-                :model-value="liquidityData.bidAskSpread"
-                @update:model-value="liquidityData.bidAskSpread = $event"
-                class="radio-row"
-              >
+              <el-radio-group :model-value="liquidityData.bidAskSpread"
+                @update:model-value="liquidityData.bidAskSpread = $event" class="radio-row">
                 <el-radio :value="15">15分 · 15 BP 以内：机构级流动性极佳</el-radio>
                 <el-radio :value="10">10分 · 15 ~ 30 BP：标准入场区，甜点位</el-radio>
                 <el-radio :value="5">5分 · 30 ~ 60 BP：警示，严禁吃单，必须挂中间价等待</el-radio>
@@ -430,11 +416,8 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
             <!-- Depth Audit -->
             <div class="audit-item">
               <div class="item-label">2. 深度审计：承载力风险量化 <span class="weight-tag">权重 10 分</span></div>
-              <el-radio-group
-                :model-value="liquidityData.depthRatio"
-                @update:model-value="liquidityData.depthRatio = $event"
-                class="radio-row"
-              >
+              <el-radio-group :model-value="liquidityData.depthRatio"
+                @update:model-value="liquidityData.depthRatio = $event" class="radio-row">
                 <el-radio :value="10">10分 · 比率 &gt; 10倍：极深，大单不引盘口异动</el-radio>
                 <el-radio :value="7">7分 · 5 ~ 10倍：稳健，支持快速一次性成交</el-radio>
                 <el-radio :value="3">3分 · 2 ~ 5倍：较薄，必须分步慢速拆单</el-radio>
@@ -445,11 +428,8 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
             <!-- OI Audit -->
             <div class="audit-item">
               <div class="item-label">3. 退出审计：未平仓合约量 OI <span class="weight-tag">权重 5 分</span></div>
-              <el-radio-group
-                :model-value="liquidityData.oiVolume"
-                @update:model-value="liquidityData.oiVolume = $event"
-                class="radio-row"
-              >
+              <el-radio-group :model-value="liquidityData.oiVolume"
+                @update:model-value="liquidityData.oiVolume = $event" class="radio-row">
                 <el-radio :value="5">5分 · OI &gt; 500 枚：密集活跃区，无滞销风险</el-radio>
                 <el-radio :value="3">3分 · OI 100 ~ 500 枚：流动性尚可</el-radio>
                 <el-radio :value="0">0分 · OI &lt; 100 枚：流动性枯竭，清算风险极高</el-radio>
@@ -460,11 +440,10 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
 
         <!-- Generate Report Button -->
         <div class="action-row">
-          <button class="generate-btn" @click="openReport">
+          <button class="generate-btn" @click="showReport = !showReport">
             生成综合审计报告
           </button>
         </div>
-
       </el-col>
 
       <!-- Right Column: Radar & Scoreboard -->
@@ -488,75 +467,50 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
             <div class="score-row">
               <span class="score-name">① IV 审计</span>
               <div class="score-bar-wrap">
-                <div class="score-bar" :style="{ width: (part1CurrentScore / 40 * 100) + '%', background: part1CurrentStatus.color }"></div>
+                <div class="score-bar"
+                  :style="{ width: (part1CurrentScore / 40 * 100) + '%', background: part1CurrentStatus.color }"></div>
               </div>
               <span class="score-val" :style="{ color: part1CurrentStatus.color }">{{ part1CurrentScore }} / 40</span>
             </div>
             <div class="score-row">
               <span class="score-name">② 策略选型</span>
               <div class="score-bar-wrap">
-                <div class="score-bar" :style="{ width: (part2Score / 100 * 100) + '%', background: part2Mode.color }"></div>
+                <div class="score-bar" :style="{ width: (part2Score / 100 * 100) + '%', background: part2Mode.color }">
+                </div>
               </div>
               <span class="score-val" :style="{ color: part2Mode.color }">{{ part2Score }} / 100</span>
             </div>
             <div class="score-row">
               <span class="score-name">③ 流动性</span>
               <div class="score-bar-wrap">
-                <div class="score-bar" :style="{ width: (part3Score / 30 * 100) + '%', background: part3Action.color }"></div>
+                <div class="score-bar" :style="{ width: (part3Score / 30 * 100) + '%', background: part3Action.color }">
+                </div>
               </div>
               <span class="score-val" :style="{ color: part3Action.color }">{{ part3Score }} / 30</span>
             </div>
             <div class="score-row total-row">
               <span class="score-name">综合总分</span>
               <div class="score-bar-wrap">
-                <div class="score-bar total-bar" :style="{ width: (totalScore / 170 * 100) + '%', background: finalVerdict.color }"></div>
+                <div class="score-bar total-bar"
+                  :style="{ width: (totalScore / 170 * 100) + '%', background: finalVerdict.color }"></div>
               </div>
               <span class="score-val total-val" :style="{ color: finalVerdict.color }">{{ totalScore }} / 170</span>
             </div>
           </div>
         </div>
 
-        <!-- Final Verdict Card -->
-        <div class="audit-card verdict-card" :style="{ borderColor: finalVerdict.color }">
-          <div class="verdict-title" :style="{ color: finalVerdict.color }">
-            {{ finalVerdict.label }}
-          </div>
-          <div class="verdict-number" :style="{ color: finalVerdict.color }">
-            {{ totalScore }}<span>分</span>
-          </div>
-          <div class="verdict-details">
-            <div class="vd-item">
-              <span class="vd-key">立场</span>
-              <span class="vd-val">{{ finalVerdict.side === 'seller' ? '🐻 卖方' : '🐂 买方' }}</span>
-            </div>
-            <div class="vd-item">
-              <span class="vd-key">策略模式</span>
-              <span class="vd-val" :style="{ color: part2Mode.color }">{{ part2Mode.label }}</span>
-            </div>
-            <div class="vd-item">
-              <span class="vd-key">执行建议</span>
-              <span class="vd-val" :style="{ color: part3Action.color }">{{ part3Action.label }}</span>
-            </div>
-            <div class="vd-item">
-              <span class="vd-key">IV 状态</span>
-              <span class="vd-val" :style="{ color: part1CurrentStatus.color }">{{ part1CurrentStatus.label }}</span>
-            </div>
-          </div>
+        <!-- Report Toggle -->
+        <div class="report-toggle">
+          <button class="toggle-report-btn" @click="showReport = !showReport">
+            {{ showReport ? '收起报告 ↑' : '展开报告 ↓' }}
+          </button>
         </div>
 
-      </el-col>
-    </el-row>
-
-    <!-- Report Modal -->
-    <Teleport to="body">
-      <div v-if="showReport" class="modal-overlay" @click.self="closeReport">
-        <div class="modal-panel" ref="reportRef">
-          <div class="modal-header">
-            <div>
-              <h2 class="modal-title">综合审计报告</h2>
-              <p class="modal-sub">Comprehensive Audit Report · 立场：{{ finalVerdict.side === 'seller' ? '🐻 卖方' : '🐂 买方' }}</p>
-            </div>
-            <button class="modal-close" @click="closeReport">✕</button>
+        <!-- Report Panel (inline) -->
+        <div v-if="showReport" class="audit-card report-panel">
+          <div class="card-header">
+            <h2 class="card-title">综合审计报告</h2>
+            <span class="modal-sub">立场：{{ finalVerdict.side === 'seller' ? '🐻 卖方' : '🐂 买方' }}</span>
           </div>
 
           <div class="report-body">
@@ -566,22 +520,27 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
               <div class="rs-item">
                 <span class="rs-label">① IV 审计</span>
                 <span class="rs-val" :style="{ color: part1CurrentStatus.color }">{{ part1CurrentScore }}分</span>
-                <span class="rs-tag" :style="{ color: part1CurrentStatus.color, borderColor: part1CurrentStatus.color }">{{ part1CurrentStatus.label }}</span>
+                <span class="rs-tag"
+                  :style="{ color: part1CurrentStatus.color, borderColor: part1CurrentStatus.color }">{{
+                    part1CurrentStatus.label }}</span>
               </div>
               <div class="rs-item">
                 <span class="rs-label">② 策略选型</span>
                 <span class="rs-val" :style="{ color: part2Mode.color }">{{ part2Score }}分</span>
-                <span class="rs-tag" :style="{ color: part2Mode.color, borderColor: part2Mode.color }">{{ part2Mode.label }}</span>
+                <span class="rs-tag" :style="{ color: part2Mode.color, borderColor: part2Mode.color }">{{
+                  part2Mode.label }}</span>
               </div>
               <div class="rs-item">
                 <span class="rs-label">③ 流动性</span>
                 <span class="rs-val" :style="{ color: part3Action.color }">{{ part3Score }}分</span>
-                <span class="rs-tag" :style="{ color: part3Action.color, borderColor: part3Action.color }">{{ part3Action.label }}</span>
+                <span class="rs-tag" :style="{ color: part3Action.color, borderColor: part3Action.color }">{{
+                  part3Action.label }}</span>
               </div>
               <div class="rs-item rs-total">
                 <span class="rs-label">综合</span>
                 <span class="rs-val" :style="{ color: finalVerdict.color }">{{ totalScore }}分</span>
-                <span class="rs-tag" :style="{ color: finalVerdict.color, borderColor: finalVerdict.color }">{{ finalVerdict.label }}</span>
+                <span class="rs-tag" :style="{ color: finalVerdict.color, borderColor: finalVerdict.color }">{{
+                  finalVerdict.label }}</span>
               </div>
             </div>
 
@@ -596,10 +555,8 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
                   <p v-if="part1SellerScore >= 25">
                     当前 IV 曲面处于
                     <strong>{{ part1CurrentStatus.label }}</strong> 区间（卖方得分 {{ part1SellerScore }} 分）。
-                    IV 微笑曲线呈 {{ ivScoreData.skew === 'seller_put' || ivScoreData.skew === 'buyer_call' ? '正向偏斜（Put 端 IV 更高）' : ivScoreData.skew === 'seller_call' || ivScoreData.skew === 'buyer_put' ? '负向偏斜（Call 端 IV 更高）' : '偏斜未定义' }}，
-                    远期结构为 {{ ivScoreData.termStructure !== null && ivScoreData.termStructure > 0 ? 'Contango（升水）有利于卖方收取时间价值' : 'Backwardation（贴水）表明近期恐慌溢价抬升' }}。
-                    Vega 敞口在当前 IV 百分位下处于
-                    <strong>{{ ivScoreData.ivPercentile === 'seller_a' ? '有利于卖方的溢价压缩区间' : ivScoreData.ivPercentile === 'seller_b' ? '极端高估，IV 随时可能崩跌，负分警示' : 'IV 极低，买方天堂' }}</strong>。
+                    IV 微笑曲线呈 {{ skewLabel }}，远期结构为 {{ termLabel }}。
+                    Vega 敞口在当前 IV 百分位下处于 <strong>{{ ivPercentileLabel }}</strong>。
                   </p>
                   <p v-else>
                     ⚠️ IV 审计得分低于 25，IV 溢价安全垫不足。卖方在此环境下需承受 Vega 敞口压缩利润、Gamma 突然跳升引发账户剧烈波动的高风险。
@@ -608,40 +565,41 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
                   <p>
                     策略层面，{{ part2Mode.label }}（{{ part2Score }} 分）：
                     {{ part2Mode.advice }}
-                    {{ strategyData.confidence !== null && strategyData.confidence < 20 ? '需注意：当前信心不足，Gamma 方向不明，任何大波动都可能反向撕裂价差组合。' : '' }}
-                    {{ strategyData.ivCost !== null && strategyData.ivCost === 0 ? 'IV 极贵时做卖方有内在优势，但需严格计算 Portfolio Margin 占用，避免 Gamma Squeeze。' : '' }}
-                  </p>
-                  <p>
-                    流动性维度（得分 {{ part3Score }} / 30）：
-                    {{ part3Action.sub }}
-                    {{ part3Score < 15 ? '⚠️ 在此流动性下开单将面临严重的 Bid-Ask Spread 磨损和无法及时退出风险，强制止损代价极高。' : '' }}
-                    建议执行时使用 {{ part3Score >= 25 ? '标准限价单快速入场' : '冰山委托 / 中间价挂单' }}。
-                  </p>
+                    {{ strategyData.confidence !== null && strategyData.confidence < 20
+                      ? '需注意：当前信心不足，Gamma 方向不明，任何大波动都可能反向撕裂价差组合。' : '' }} {{ strategyData.ivCost !== null &&
+                        strategyData.ivCost === 0 ? 'IV 极贵时做卖方有内在优势，但需严格计算 Portfolio Margin 占用，避免 Gamma Squeeze。' : '' }}
+                      </p>
+                      <p>
+                        流动性维度（得分 {{ part3Score }} / 30）：
+                        {{ part3Action.sub }}
+                        {{ part3Score < 15 ? '⚠️ 在此流动性下开单将面临严重的 Bid-Ask Spread 磨损和无法及时退出风险，强制止损代价极高。' : '' }} 建议执行时使用 {{
+                          part3Score >= 25 ? '标准限价单快速入场' : '冰山委托 / 中间价挂单' }}。
+                      </p>
                 </template>
                 <template v-else>
                   <p v-if="part1BuyerScore >= 20">
                     当前 IV 曲面处于
                     <strong>{{ part1CurrentStatus.label }}</strong> 区间（买方得分 {{ part1BuyerScore }} 分）。
-                    {{ ivScoreData.ivRvGap !== null && ivScoreData.ivRvGap < 0 ? 'IV-RV 存在负向价差，实际波动率（RV）高于隐含波动率（IV），存在潜在的 Gamma 爆发机会。' : '' }}
-                    {{ ivScoreData.ivPercentile === 'buyer_c' ? 'IV 百分位低于 25%，期权定价极其便宜，Vega 对买方极为有利。' : '' }}
-                    远期结构为 {{ ivScoreData.termStructure !== null && ivScoreData.termStructure < 0 ? 'Backwardation（贴水）' : 'Contango（升水）' }}，
-                    {{ ivScoreData.termStructure !== null && ivScoreData.termStructure < 0 ? '近期 IV 被恐慌溢价推高，买方在此入场可享受 IV 扩张带来的 Vega 双重收益。' : '远期 IV 相对偏高，注意 Theta 损耗节奏。' }}
-                  </p>
-                  <p v-else>
-                    ⚠️ 买方评分低于 20，IV 环境或空间不足以支撑买方头寸的 Theta 损耗。Gamma 爆发力不足。
-                    当前判定为"{{ part1CurrentStatus.label }}"行情，强行买入将面临持续的时间价值衰减（Negative Theta）。
-                  </p>
-                  <p>
-                    策略层面，{{ part2Mode.label }}（{{ part2Score }} 分）：
-                    {{ part2Mode.advice }}
-                    {{ strategyData.ivCost !== null && strategyData.ivCost === 30 ? 'IV 极便宜，Vega 敞口巨大，轻仓买入可在 IV 扩张时享受利润非线性增长。' : '' }}
-                    {{ strategyData.targetSpace !== null && strategyData.targetSpace === 0 ? '区间震荡行情下买入期权，Theta 会持续抽走权利金，需严格控制持仓周期。' : '' }}
-                  </p>
-                  <p>
-                    流动性维度（得分 {{ part3Score }} / 30）：
-                    {{ part3Action.sub }}
-                    {{ part3Score < 15 ? '⚠️ 低流动性下买入后若行情不利，将面临无流动性的平仓困境，无法有效止损。' : '' }}
-                  </p>
+                    {{ ivScoreData.ivRvGap !== null && ivScoreData.ivRvGap < 0
+                      ? 'IV-RV 存在负向价差，实际波动率（RV）高于隐含波动率（IV），存在潜在的 Gamma 爆发机会。' : '' }} {{
+                        ivScoreData.ivPercentile === 'buyer_c' ? 'IV 百分位低于 25%，期权定价极其便宜，Vega 对买方极为有利。' : '' }} 远期结构为 {{
+                        ivScoreData.termStructure !== null && ivScoreData.termStructure < 0 ? 'Backwardation（贴水）'
+                          : 'Contango（升水）' }}， {{ ivScoreData.termStructure !== null && ivScoreData.termStructure < 0
+                        ? '近期 IV 被恐慌溢价推高，买方在此入场可享受 IV 扩张带来的 Vega 双重收益。' : '远期 IV 相对偏高，注意 Theta 损耗节奏。' }} </p>
+                      <p v-else>
+                        ⚠️ 买方评分低于 20，IV 环境或空间不足以支撑买方头寸的 Theta 损耗。Gamma 爆发力不足。
+                        当前判定为"{{ part1CurrentStatus.label }}"行情，强行买入将面临持续的时间价值衰减（Negative Theta）。
+                      </p>
+                      <p>
+                        策略层面，{{ part2Mode.label }}（{{ part2Score }} 分）：
+                        {{ part2Mode.advice }}
+                        {{ ivCostWarning }}
+                        {{ targetSpaceWarning }}
+                      </p>
+                      <p>
+                        流动性维度（得分 {{ part3Score }} / 30）：
+                        {{ part3Action.sub }}
+                        {{ part3Score < 15 ? '⚠️ 低流动性下买入后若行情不利，将面临无流动性的平仓困境，无法有效止损。' : '' }} </p>
                 </template>
               </div>
             </div>
@@ -657,7 +615,9 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
                   <p v-if="part1SellerScore >= 25">
                     说人话：现在 IV 有点高（或者说相对合理），你卖期权能收到不少权利金。波动率后期如果降下来（这对买方来说是坏事），你卖的那些期权就会贬值，你就能把这笔权利金装进口袋。
                     就像保险公司收保费，只要不出大灾难（波动不大），你就赚钱。
-                    当前分 {{ part1SellerScore }}，{{ part1CurrentStatus.label }}，{{ ivScoreData.termStructure !== null && ivScoreData.termStructure > 0 ? '市场在慢慢涨（Contango），卖远月合约可以稳定收钱。' : '市场近期很恐慌（Backwardation），卖近月期权溢价高但风险也大。' }}
+                    当前分 {{ part1SellerScore }}，{{ part1CurrentStatus.label }}，{{ ivScoreData.termStructure !== null &&
+                      ivScoreData.termStructure > 0 ? '市场在慢慢涨（Contango），卖远月合约可以稳定收钱。' :
+                      '市场近期很恐慌（Backwardation），卖近月期权溢价高但风险也大。' }}
                   </p>
                   <p v-else>
                     ⚠️ 说人话：现在 IV 太低（溢价薄），或者市场波动预期大（IV 可能暴涨），卖期权收到的保费根本不够cover后期的损失。
@@ -666,14 +626,13 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
                   <p>
                     策略建议：{{ part2Mode.label }}——
                     {{ part2Mode.advice }}
-                    {{ strategyData.confidence !== null && strategyData.confidence < 20 ? '你的信心一般，别all in。' : '' }}
-                    {{ strategyData.ivCost !== null && strategyData.ivCost === 0 ? 'IV很贵，你如果这时候去卖期权，就是在高价出货，有优势。' : '' }}
-                  </p>
-                  <p>
-                    手续费方面：{{ part3Action.label }}——
-                    {{ part3Action.sub }}
-                    {{ part3Score < 25 ? '手续费太贵了，你赚的钱可能还不够交手续费和滑点，净收益会被严重侵蚀。' : '这点手续费对你的交易来说不算什么，干就完了。' }}
-                  </p>
+                    {{ strategyData.confidence !== null && strategyData.confidence < 20 ? '你的信心一般，别all in。' : '' }} {{
+                      strategyData.ivCost !== null && strategyData.ivCost === 0 ? 'IV很贵，你如果这时候去卖期权，就是在高价出货，有优势。' : '' }}
+                      </p>
+                      <p>
+                        手续费方面：{{ part3Action.label }}——
+                        {{ part3Action.sub }}
+                        {{ part3Score < 25 ? '手续费太贵了，你赚的钱可能还不够交手续费和滑点，净收益会被严重侵蚀。' : '这点手续费对你的交易来说不算什么，干就完了。' }} </p>
                 </template>
                 <template v-else>
                   <p v-if="part1BuyerScore >= 20">
@@ -690,26 +649,20 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
                   <p>
                     策略建议：{{ part2Mode.label }}——
                     {{ part2Mode.advice }}
-                    {{ strategyData.targetSpace !== null && strategyData.targetSpace === 0 ? '市场在来回震荡，买期权在这种行情下会持续亏时间价值，赔率不划算。' : '' }}
+                    {{ strategyData.targetSpace !== null && strategyData.targetSpace === 0 ?
+                      '市场在来回震荡，买期权在这种行情下会持续亏时间价值，赔率不划算。' : '' }}
                   </p>
                   <p>
                     流动性方面：{{ part3Action.label }}——
                     {{ part3Action.sub }}
-                    {{ part3Score < 15 ? '买完以后如果想止损，可能根本找不到人接盘，只能自己压价卖，血亏。' : '流动性够好，进出自由。' }}
-                  </p>
+                    {{ part3Score < 15 ? '买完以后如果想止损，可能根本找不到人接盘，只能自己压价卖，血亏。' : '流动性够好，进出自由。' }} </p>
                 </template>
               </div>
             </div>
-
-          </div>
-
-          <div class="modal-footer">
-            <button class="modal-btn secondary" @click="closeReport">关闭</button>
-            <button class="modal-btn primary" @click="closeReport">{{ finalVerdict.label }}</button>
           </div>
         </div>
-      </div>
-    </Teleport>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
@@ -733,14 +686,17 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   margin-bottom: 16px;
   border: 1px solid #e4e7ed;
 }
+
 .header-left {
   display: flex;
   align-items: center;
   gap: 12px;
 }
+
 .header-icon {
   font-size: 28px;
 }
+
 .page-title {
   margin: 0;
   font-size: 18px;
@@ -748,16 +704,19 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   color: #2c3e50;
   line-height: 1.2;
 }
+
 .page-sub {
   margin: 0;
   font-size: 12px;
   color: #909399;
 }
+
 .header-right {
   display: flex;
   align-items: center;
   gap: 16px;
 }
+
 .verdict-badge {
   padding: 6px 16px;
   border-radius: 20px;
@@ -765,12 +724,14 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   font-size: 14px;
   font-weight: 700;
 }
+
 .total-score {
   font-size: 32px;
   font-weight: 800;
   color: #2c3e50;
   line-height: 1;
 }
+
 .total-score span {
   font-size: 14px;
   font-weight: 400;
@@ -785,16 +746,19 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   gap: 16px;
   margin-bottom: 16px;
 }
+
 .section-label {
   font-size: 13px;
   font-weight: 600;
   color: #606266;
   white-space: nowrap;
 }
+
 .side-toggle {
   display: flex;
   gap: 8px;
 }
+
 .toggle-btn {
   padding: 8px 20px;
   border: 2px solid #dcdfe6;
@@ -805,12 +769,14 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   cursor: pointer;
   transition: all 0.2s;
 }
+
 .toggle-btn.active {
   border-color: #409eff;
   background: #ecf5ff;
   color: #409eff;
   font-weight: 600;
 }
+
 .toggle-btn:hover:not(.active) {
   border-color: #409eff;
   color: #409eff;
@@ -824,12 +790,14 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   padding: 20px;
   margin-bottom: 16px;
 }
+
 .card-header {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 12px;
 }
+
 .part-tag {
   background: #409eff;
   color: #fff;
@@ -839,6 +807,7 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   border-radius: 10px;
   flex-shrink: 0;
 }
+
 .card-title {
   margin: 0;
   font-size: 15px;
@@ -846,6 +815,7 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   color: #2c3e50;
   flex: 1;
 }
+
 .score-badge {
   font-size: 14px;
   font-weight: 800;
@@ -864,12 +834,14 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   font-weight: 600;
   margin-bottom: 16px;
 }
+
 .status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
+
 .advice-bar {
   padding: 8px 12px;
   border: 1px solid;
@@ -886,30 +858,38 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   flex-direction: column;
   gap: 16px;
 }
+
 .audit-items.compact {
   gap: 10px;
 }
+
 .audit-item {
   border-bottom: 1px solid #f0f2f5;
   padding-bottom: 12px;
 }
+
 .audit-items.compact .audit-item {
   padding-bottom: 10px;
 }
+
 .audit-item:last-child {
   border-bottom: none;
   padding-bottom: 0;
 }
+
 .item-label {
   font-size: 13px;
   font-weight: 600;
   color: #303133;
   margin-bottom: 8px;
   line-height: 1.4;
+  text-align: left;
 }
+
 .audit-items.compact .item-label {
   margin-bottom: 6px;
 }
+
 .weight-tag {
   font-size: 11px;
   color: #909399;
@@ -930,6 +910,7 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   flex-direction: column;
   gap: 8px;
 }
+
 /* ─── Part 1 Assessment Row ──────────────────────────────────────────────── */
 .assessment-row {
   display: flex;
@@ -938,6 +919,7 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   padding-top: 16px;
   border-top: 1px solid #f0f2f5;
 }
+
 .assessment-item {
   flex: 1;
   display: flex;
@@ -949,20 +931,24 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   background: #fafafa;
   transition: all 0.2s;
 }
+
 .assessment-item.active {
   border-color: currentColor;
   background: #fff;
 }
+
 .ass-label {
   font-size: 12px;
   color: #909399;
   font-weight: 600;
 }
+
 .ass-score {
   font-size: 18px;
   font-weight: 800;
   flex: 1;
 }
+
 .ass-tag {
   font-size: 11px;
   font-weight: 700;
@@ -976,6 +962,7 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
 .action-row {
   margin-bottom: 16px;
 }
+
 .generate-btn {
   width: 100%;
   padding: 14px;
@@ -988,6 +975,7 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   cursor: pointer;
   transition: background 0.2s;
 }
+
 .generate-btn:hover {
   background: #66b1ff;
 }
@@ -996,6 +984,7 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
 .radar-card {
   margin-bottom: 16px;
 }
+
 .radar-chart {
   width: 100%;
   height: 260px;
@@ -1007,17 +996,20 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   flex-direction: column;
   gap: 14px;
 }
+
 .score-row {
   display: flex;
   align-items: center;
   gap: 10px;
 }
+
 .score-name {
   font-size: 13px;
   color: #606266;
   width: 80px;
   flex-shrink: 0;
 }
+
 .score-bar-wrap {
   flex: 1;
   height: 8px;
@@ -1025,130 +1017,60 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   border-radius: 4px;
   overflow: hidden;
 }
+
 .score-bar {
   height: 100%;
   border-radius: 4px;
   transition: width 0.4s ease, background 0.3s;
 }
+
 .total-bar {
   height: 10px;
 }
+
 .score-val {
   font-size: 13px;
   font-weight: 700;
-  width: 50px;
+  width: 66px;
   text-align: right;
   flex-shrink: 0;
 }
+
 .total-row {
   padding-top: 14px;
   border-top: 1px solid #f0f2f5;
 }
+
 .total-val {
   font-size: 15px;
 }
 
-/* ─── Verdict Card ───────────────────────────────────────────────────────── */
-.verdict-card {
-  border-width: 2px;
-  text-align: center;
-  padding: 24px;
-}
-.verdict-title {
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 8px;
-}
-.verdict-number {
-  font-size: 48px;
-  font-weight: 900;
-  line-height: 1;
-  margin-bottom: 16px;
-}
-.verdict-number span {
-  font-size: 20px;
-  font-weight: 400;
-  margin-left: 2px;
-}
-.verdict-details {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  text-align: left;
-}
-.vd-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px;
-  background: #fafafa;
-  border-radius: 6px;
-}
-.vd-key {
-  font-size: 11px;
-  color: #909399;
-  font-weight: 600;
-}
-.vd-val {
-  font-size: 13px;
-  font-weight: 700;
-  color: #303133;
+/* ─── Report Panel ────────────────────────────────────────────────────────── */
+.report-toggle {
+  margin-bottom: 10px;
 }
 
-/* ─── Modal ──────────────────────────────────────────────────────────────── */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 40px 16px;
-  z-index: 2000;
-  overflow-y: auto;
-}
-.modal-panel {
-  background: #fff;
-  border-radius: 12px;
+.toggle-report-btn {
   width: 100%;
-  max-width: 760px;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.18);
-}
-.modal-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 24px 28px 20px;
-  border-bottom: 1px solid #f0f2f5;
-}
-.modal-title {
-  margin: 0 0 4px;
-  font-size: 18px;
-  font-weight: 800;
-  color: #2c3e50;
-}
-.modal-sub {
-  margin: 0;
-  font-size: 12px;
-  color: #909399;
-}
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 20px;
-  color: #909399;
-  cursor: pointer;
-  padding: 4px;
-  line-height: 1;
-  flex-shrink: 0;
-}
-.modal-close:hover {
+  padding: 10px;
+  background: #f5f7fa;
+  border: 1.5px solid #e4e7ed;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
   color: #409eff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggle-report-btn:hover {
+  background: #ecf5ff;
+  border-color: #409eff;
 }
 
 .report-body {
-  padding: 20px 28px;
-  max-height: 65vh;
+  padding: 16px 0 0;
+  max-height: 60vh;
   overflow-y: auto;
 }
 
@@ -1158,6 +1080,7 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   gap: 10px;
   margin-bottom: 20px;
 }
+
 .rs-item {
   flex: 1;
   display: flex;
@@ -1169,20 +1092,24 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   text-align: center;
   border: 1.5px solid #e4e7ed;
 }
+
 .rs-total {
   background: #f0f6ff;
   border-color: #409eff;
 }
+
 .rs-label {
   font-size: 11px;
   color: #909399;
   font-weight: 600;
 }
+
 .rs-val {
   font-size: 22px;
   font-weight: 900;
   line-height: 1;
 }
+
 .rs-tag {
   font-size: 11px;
   font-weight: 700;
@@ -1198,6 +1125,7 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
 .report-section {
   margin-bottom: 16px;
 }
+
 .rs-header {
   display: flex;
   align-items: center;
@@ -1206,69 +1134,45 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
   border-radius: 8px;
   margin-bottom: 12px;
 }
+
 .rs-header.professional {
   background: #ecf5ff;
   border-left: 3px solid #409eff;
 }
+
 .rs-header.plain {
   background: #f0f6ff;
   border-left: 3px solid #67c23a;
 }
+
 .rs-header h3 {
   margin: 0;
   font-size: 14px;
   font-weight: 700;
   color: #2c3e50;
 }
+
 .rs-icon {
   font-size: 16px;
 }
+
 .report-text {
   padding: 0 4px;
 }
+
 .report-text p {
   margin: 0 0 10px;
   font-size: 13px;
   color: #303133;
   line-height: 1.8;
 }
+
 .report-text p:last-child {
   margin-bottom: 0;
 }
+
 .report-text strong {
   color: #409eff;
   font-weight: 700;
-}
-
-/* Modal Footer */
-.modal-footer {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  padding: 16px 28px 24px;
-  border-top: 1px solid #f0f2f5;
-}
-.modal-btn {
-  padding: 10px 24px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  transition: all 0.2s;
-}
-.modal-btn.secondary {
-  background: #f0f2f5;
-  color: #606266;
-}
-.modal-btn.secondary:hover {
-  background: #e4e7ed;
-}
-.modal-btn.primary {
-  background: #409eff;
-  color: #fff;
-}
-.modal-btn.primary:hover {
-  background: #66b1ff;
 }
 </style>
