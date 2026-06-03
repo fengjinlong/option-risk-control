@@ -4,8 +4,6 @@ import { ElButton, ElCard, ElRow, ElCol, ElAlert, ElDivider } from 'element-plus
 import * as echarts from 'echarts'
 
 // ---------- 审计状态 ----------
-type PositionSide = 'seller' | 'buyer'
-const positionSide = ref<PositionSide>('seller')
 
 // 1. IV vs RV
 const ivRvAudit = ref<'below' | 'normal'>('normal')
@@ -41,10 +39,12 @@ const SCORES: Record<string, { seller: number; buyer: number }> = {
   oiOutside:   { seller:   0, buyer:   0 },
 }
 
+const rvMap = { cross_up: 'rvCrossUp', cross_down: 'rvCrossDown', flat: 'rvFlat', bottom_up: 'rvBottomUp' }
+
 const sellerScore = computed(() => {
   let s = 0
   s += SCORES[ivRvAudit.value === 'below' ? 'ivRvBelow' : 'ivRvNormal'].seller
-  s += SCORES[{ cross_up: 'rvCrossUp', cross_down: 'rvCrossDown', flat: 'rvFlat', bottom_up: 'rvBottomUp' }[rvMomentumAudit.value]].seller
+  s += SCORES[rvMap[rvMomentumAudit.value]].seller
   s += SCORES[atmTermAudit.value === 'inflate' ? 'atmInflate' : 'atmCollapse'].seller
   s += SCORES[rrAudit.value  === 'high' ? 'rrHigh'  : 'rrNormal'].seller
   s += SCORES[flyAudit.value === 'high' ? 'flyHigh' : 'flyNormal'].seller
@@ -55,7 +55,7 @@ const sellerScore = computed(() => {
 const buyerScore = computed(() => {
   let b = 0
   b += SCORES[ivRvAudit.value === 'below' ? 'ivRvBelow' : 'ivRvNormal'].buyer
-  b += SCORES[{ cross_up: 'rvCrossUp', cross_down: 'rvCrossDown', flat: 'rvFlat', bottom_up: 'rvBottomUp' }[rvMomentumAudit.value]].buyer
+  b += SCORES[rvMap[rvMomentumAudit.value]].buyer
   b += SCORES[atmTermAudit.value === 'inflate' ? 'atmInflate' : 'atmCollapse'].buyer
   b += SCORES[rrAudit.value  === 'high' ? 'rrHigh'  : 'rrNormal'].buyer
   b += SCORES[flyAudit.value === 'high' ? 'flyHigh' : 'flyNormal'].buyer
@@ -63,27 +63,14 @@ const buyerScore = computed(() => {
   return b
 })
 
-const totalScore = computed(() => {
-  return positionSide.value === 'seller' ? sellerScore.value : buyerScore.value
-})
-
-const sellerDecision = computed(() => {
-  const s = sellerScore.value
-  if (s < -40)  return { level: 'danger',  label: '强行减仓', action: '强制减仓 50% 以上，无条件止损离场。' }
-  if (s <= -15) return { level: 'warning', label: '暂停新仓', action: '暂停开立任何新头寸，立即修正 Gamma/Delta 对冲，买入尾部保险。' }
+function getDecision(score: number) {
+  if (score < -40)  return { level: 'danger',  label: '强行减仓', action: '强制减仓 50% 以上，无条件止损离场。' }
+  if (score <= -15) return { level: 'warning', label: '暂停新仓', action: '暂停开立任何新头寸，立即修正 Gamma/Delta 对冲，买入尾部保险。' }
   return           { level: 'success', label: '平稳巡航', action: '禁止任何主观情绪化操作，坚定执行原有计划，静等 Theta 收租或 Gamma 兑现。' }
-})
+}
 
-const buyerDecision = computed(() => {
-  const s = buyerScore.value
-  if (s < -40)  return { level: 'danger',  label: '强行减仓', action: '强制减仓 50% 以上，无条件止损离场。' }
-  if (s <= -15) return { level: 'warning', label: '暂停新仓', action: '暂停开立任何新头寸，立即修正 Gamma/Delta 对冲，买入尾部保险。' }
-  return           { level: 'success', label: '平稳巡航', action: '禁止任何主观情绪化操作，坚定执行原有计划，静等 Theta 收租或 Gamma 兑现。' }
-})
-
-const decision = computed(() => {
-  return positionSide.value === 'seller' ? sellerDecision.value : buyerDecision.value
-})
+const sellerDecision = computed(() => getDecision(sellerScore.value))
+const buyerDecision  = computed(() => getDecision(buyerScore.value))
 
 // ---------- 双指针仪表盘 ----------
 const gaugeRef = ref<HTMLDivElement>()
@@ -148,67 +135,68 @@ watch([ivRvAudit, rvMomentumAudit, atmTermAudit, rrAudit, flyAudit, oiWallAudit]
 // ---------- 审计报告 ----------
 const showReport = ref(false)
 
-const reportContent = computed(() => {
-  const side = positionSide.value === 'seller' ? '卖方' : '买方'
-  const isSeller = positionSide.value === 'seller'
-
-  const expertLines: string[] = []
-  const plainLines: string[] = []
-
-  // 1. IV vs RV
+// 通用报告内容
+const expertLines = computed(() => {
+  const lines: string[] = []
   if (ivRvAudit.value === 'below') {
-    expertLines.push('IV 贴水流血状态确认：隐含波动率持续低于实际波动率（RV），卖方跨式/宽跨式组合处于贴水侵蚀状态。Vega 敞口呈负值积累，Theta 收取的保费正在被 IV 坍缩加速蚕食。Portfolio Margin 占用将随 IV 下滑而降低，但浮亏兑现窗口正在收窄。')
-    plainLines.push('你的卖方仓位正在"贴水流血"——市场给的保费在不断变薄，账户实际上在亏隐含波动率的钱。现在收的 theta 保费还不够弥补 IV 下降带来的浮亏。')
+    lines.push('IV 贴水流血状态确认：隐含波动率持续低于实际波动率（RV），卖方跨式/宽跨式组合处于贴水侵蚀状态。Vega 敞口呈负值积累，Theta 收取的保费正在被 IV 坍缩加速蚕食。Portfolio Margin 占用将随 IV 下滑而降低，但浮亏兑现窗口正在收窄。')
   } else {
-    expertLines.push('IV/RV 处于正常溢价区间，卖方 Vega 敞口处于健康正溢价状态。')
-    plainLines.push('IV 和 RV 关系正常，卖方持仓的保费溢价合理，没有异常亏损风险。')
+    lines.push('IV/RV 处于正常溢价区间，卖方 Vega 敞口处于健康正溢价状态。')
   }
-
-  // 2. RV 动量
-  const rvAdvices: Record<string, { expert: string; plain: string }> = {
-    cross_up:   { expert: 'RV 动量上穿零轴，动能爆发确认。Gamma 敞口将进入非线性加速亏损区域，卖方需立即收紧 Delta 对冲频率。', plain: '波动率开始暴涨！买方的 gamma 要开始发力了，卖方账户会加速亏损。建议立刻减仓或做 Delta 对冲。' },
-    cross_down: { expert: 'RV 动量下穿零轴，波动率势能衰竭。卖方可坚定持仓等待 Theta 加速释放。', plain: '波动率开始消停了，卖方可以安心收租 theta，买方这时候要小心别被耗死。' },
-    flat:       { expert: 'RV 动量持续走平，市场进入极度低波死寂状态。Theta 衰减效率最大化，卖方处于最佳稳态经营区间。', plain: '市场平静得像死水一样，波动率一动不动。卖方这时候最舒服，躺赚 theta 保费。' },
-    bottom_up:  { expert: 'RV 动量底部抬头，潜伏期结束信号出现。卖方应立即进入预警状态，严禁开立任何新卖单头寸。', plain: '波动率可能要动了！卖方要警惕，这时候千万别新开卖单，容易被 gamma 打脸。' },
+  const rvExpert: Record<string, string> = {
+    cross_up:   'RV 动量上穿零轴，动能爆发确认。Gamma 敞口将进入非线性加速亏损区域，卖方需立即收紧 Delta 对冲频率。',
+    cross_down: 'RV 动量下穿零轴，波动率势能衰竭。卖方可坚定持仓等待 Theta 加速释放。',
+    flat:       'RV 动量持续走平，市场进入极度低波死寂状态。Theta 衰减效率最大化，卖方处于最佳稳态经营区间。',
+    bottom_up:  'RV 动量底部抬头，潜伏期结束信号出现。卖方应立即进入预警状态，严禁开立任何新卖单头寸。',
   }
-  expertLines.push(rvAdvices[rvMomentumAudit.value].expert)
-  plainLines.push(rvAdvices[rvMomentumAudit.value].plain)
-
-  // 3. ATM 期限结构
+  lines.push(rvExpert[rvMomentumAudit.value])
   if (atmTermAudit.value === 'inflate') {
-    expertLines.push('ATM 期限结构全线膨胀（Now vs T-1），Vega 浮亏已在全线头寸中体现。卖方需关注近月头寸的 Gamma/Delta 突变风险。')
-    plainLines.push('整个期限结构的隐含波动率都在涨，你的卖方账户正在全线浮亏。越接近短期的仓位亏得越多。')
+    lines.push('ATM 期限结构全线膨胀（Now vs T-1），Vega 浮亏已在全线头寸中体现。卖方需关注近月头寸的 Gamma/Delta 突变风险。')
   } else {
-    expertLines.push('ATM 期限结构平稳或收缩，卖方 Vega 敞口处于可控范围。')
-    plainLines.push('波动率期限结构正常，卖方持仓没有额外的 Vega 浮亏压力。')
+    lines.push('ATM 期限结构平稳或收缩，卖方 Vega 敞口处于可控范围。')
   }
-
-  // 4. 波动率锥
   if (rrAudit.value === 'high') {
-    expertLines.push('25D RR 触及历史 75% 分位，偏斜进入极值区，均值回归概率增大，适合卖方布局反向套利。')
-    plainLines.push('市场对看跌期权的需求特别高（RR 偏斜极高），这时候往往意味着恐慌情绪过头了，卖方可以考虑卖波动率反转赚回归的钱。')
+    lines.push('25D RR 触及历史 75% 分位，偏斜进入极值区，均值回归概率增大，适合卖方布局反向套利。')
   }
   if (flyAudit.value === 'high') {
-    expertLines.push('25D FLY 触及历史 95% 分位，尾部恐慌溢价达到极值。卖方（特别是卖跨式）可积极收割高额肥尾保费，但须同步买入尾部保险对冲黑天鹅风险。')
-    plainLines.push('市场对极端行情（暴涨暴跌）的恐慌达到了顶峰，大家都在疯狂买保险。卖方这时候卖保险赚得最多，但记得买一份，以防黑天鹅把自己炸了。')
+    lines.push('25D FLY 触及历史 95% 分位，尾部恐慌溢价达到极值。卖方（特别是卖跨式）可积极收割高额肥尾保费，但须同步买入尾部保险对冲黑天鹅风险。')
   }
-
-  // 5. OI 墙
   if (oiWallAudit.value === 'in_wall') {
-    expertLines.push('标的价格进入大 OI 持仓墙区域，行情在此将受到强阻力/支撑。Delta 敞口面临剧烈摩擦，卖方需动态再平衡对冲。')
-    plainLines.push('标的价格正好卡在主力仓位密集区，接下来可能会剧烈震荡洗盘。卖方账户的 Delta 可能会来回大幅摆动，对冲成本会明显上升。')
+    lines.push('标的价格进入大 OI 持仓墙区域，行情在此将受到强阻力/支撑。Delta 敞口面临剧烈摩擦，卖方需动态再平衡对冲。')
   }
-
-  return { side, expertLines, plainLines }
+  return lines
 })
 
-function generateReport() {
-  showReport.value = true
-}
-
-function onSideChange() {
-  showReport.value = false
-}
+const plainLines = computed(() => {
+  const lines: string[] = []
+  if (ivRvAudit.value === 'below') {
+    lines.push('你的卖方仓位正在"贴水流血"——市场给的保费在不断变薄，账户实际上在亏隐含波动率的钱。现在收的 theta 保费还不够弥补 IV 下降带来的浮亏。')
+  } else {
+    lines.push('IV 和 RV 关系正常，卖方持仓的保费溢价合理，没有异常亏损风险。')
+  }
+  const rvPlain: Record<string, string> = {
+    cross_up:   '波动率开始暴涨！买方的 gamma 要开始发力了，卖方账户会加速亏损。建议立刻减仓或做 Delta 对冲。',
+    cross_down: '波动率开始消停了，卖方可以安心收租 theta，买方这时候要小心别被耗死。',
+    flat:       '市场平静得像死水一样，波动率一动不动。卖方这时候最舒服，躺赚 theta 保费。',
+    bottom_up:  '波动率可能要动了！卖方要警惕，这时候千万别新开卖单，容易被 gamma 打脸。',
+  }
+  lines.push(rvPlain[rvMomentumAudit.value])
+  if (atmTermAudit.value === 'inflate') {
+    lines.push('整个期限结构的隐含波动率都在涨，你的卖方账户正在全线浮亏。越接近短期的仓位亏得越多。')
+  } else {
+    lines.push('波动率期限结构正常，卖方持仓没有额外的 Vega 浮亏压力。')
+  }
+  if (rrAudit.value === 'high') {
+    lines.push('市场对看跌期权的需求特别高（RR 偏斜极高），这时候往往意味着恐慌情绪过头了，卖方可以考虑卖波动率反转赚回归的钱。')
+  }
+  if (flyAudit.value === 'high') {
+    lines.push('市场对极端行情（暴涨暴跌）的恐慌达到了顶峰，大家都在疯狂买保险。卖方这时候卖保险赚得最多，但记得买一份，以防黑天鹅把自己炸了。')
+  }
+  if (oiWallAudit.value === 'in_wall') {
+    lines.push('标的价格正好卡在主力仓位密集区，接下来可能会剧烈震荡洗盘。卖方账户的 Delta 可能会来回大幅摆动，对冲成本会明显上升。')
+  }
+  return lines
+})
 
 function onResize() {
   gaugeChart.value?.resize()
@@ -229,40 +217,32 @@ onUnmounted(() => {
 
 <template>
   <div class="audit-workspace">
-    <!-- 顶部决策条 -->
+    <!-- 顶部双评分条 -->
     <div class="decision-bar">
-      <div class="score-display" :class="`level-${decision.level}`">
-        <span class="score-label">{{ positionSide === 'seller' ? '卖方' : '买方' }}审计总分</span>
-        <span class="score-value">{{ totalScore }}</span>
+      <div class="side-score">
+        <span class="side-tag seller-tag">卖方</span>
+        <div class="score-display" :class="`level-${sellerDecision.level}`">
+          <span class="score-value">{{ sellerScore }}</span>
+        </div>
+        <div class="decision-badge" :class="`badge-${sellerDecision.level}`">
+          {{ sellerDecision.label }}
+        </div>
       </div>
-      <div class="decision-badge" :class="`badge-${decision.level}`">
-        {{ decision.label }}
+      <div class="score-divider" />
+      <div class="side-score">
+        <span class="side-tag buyer-tag">买方</span>
+        <div class="score-display" :class="`level-${buyerDecision.level}`">
+          <span class="score-value">{{ buyerScore }}</span>
+        </div>
+        <div class="decision-badge" :class="`badge-${buyerDecision.level}`">
+          {{ buyerDecision.label }}
+        </div>
       </div>
-      <div class="decision-action">{{ decision.action }}</div>
     </div>
 
     <el-row :gutter="16">
       <!-- 左侧审计选项 -->
       <el-col :xs="24" :sm="24" :md="12" :lg="10">
-        <!-- 头寸类型选择 -->
-        <el-card class="audit-card" shadow="never">
-          <template #header>
-            <div class="card-header">主营头寸视角</div>
-          </template>
-          <div class="side-toggle">
-            <button
-              class="side-btn"
-              :class="{ active: positionSide === 'seller' }"
-              @click="positionSide = 'seller'; onSideChange()"
-            >卖方（Short Vol）</button>
-            <button
-              class="side-btn"
-              :class="{ active: positionSide === 'buyer' }"
-              @click="positionSide = 'buyer'; onSideChange()"
-            >买方（Long Vol）</button>
-          </div>
-        </el-card>
-
         <!-- 1. IV vs RV -->
         <el-card class="audit-card" shadow="never">
           <template #header>
@@ -487,13 +467,13 @@ onUnmounted(() => {
 
         <!-- 生成报告按钮 -->
         <div class="report-btn-wrap">
-          <el-button type="primary" size="large" @click="generateReport">
+          <el-button type="primary" size="large" @click="showReport = true">
             生成持仓审计报告
           </el-button>
         </div>
       </el-col>
 
-      <!-- 右侧仪表盘 + 报告 -->
+      <!-- 右侧仪表盘 + 双报告 -->
       <el-col :xs="24" :sm="24" :md="12" :lg="14">
         <!-- 双指针仪表盘 -->
         <el-card class="audit-card" shadow="never">
@@ -514,42 +494,65 @@ onUnmounted(() => {
           </div>
         </el-card>
 
-        <!-- 审计报告 -->
+        <!-- 双报告区 -->
         <transition name="fade-slide">
-          <el-card v-if="showReport" class="audit-card report-card" shadow="never">
-            <template #header>
-              <div class="card-header">
-                <span>持仓审计报告</span>
-                <span class="report-score" :class="`score-${decision.level}`">
-                  {{ positionSide === 'seller' ? '卖方' : '买方' }}总分：{{ totalScore }}
-                </span>
+          <div v-if="showReport" class="report-wrapper">
+            <!-- 卖方报告 -->
+            <el-card class="audit-card report-card" shadow="never">
+              <template #header>
+                <div class="card-header">
+                  <span class="side-tag seller-tag">卖方审计报告</span>
+                  <span class="report-score" :class="`score-${sellerDecision.level}`">
+                    总分：{{ sellerScore }}
+                  </span>
+                </div>
+              </template>
+              <el-alert
+                :title="sellerDecision.label"
+                :type="sellerDecision.level as any"
+                :description="sellerDecision.action"
+                :closable="false"
+                style="margin-bottom:12px"
+              />
+              <div class="report-section">
+                <div class="report-section-title">【专业视点】</div>
+                <div v-for="(line, i) in expertLines" :key="'se'+i" class="report-line">{{ line }}</div>
               </div>
-            </template>
-            <el-alert
-              :title="decision.label"
-              :type="decision.level as any"
-              :description="decision.action"
-              :closable="false"
-              style="margin-bottom:16px"
-            />
-            <div class="report-section">
-              <div class="report-section-title">【专业视点】</div>
-              <div
-                v-for="(line, i) in reportContent.expertLines"
-                :key="i"
-                class="report-line"
-              >{{ line }}</div>
-            </div>
-            <el-divider style="margin:12px 0" />
-            <div class="report-section">
-              <div class="report-section-title">【换成白话】</div>
-              <div
-                v-for="(line, i) in reportContent.plainLines"
-                :key="i"
-                class="report-line plain"
-              >{{ line }}</div>
-            </div>
-          </el-card>
+              <el-divider style="margin:10px 0" />
+              <div class="report-section">
+                <div class="report-section-title">【换成白话】</div>
+                <div v-for="(line, i) in plainLines" :key="'sp'+i" class="report-line plain">{{ line }}</div>
+              </div>
+            </el-card>
+
+            <!-- 买方报告 -->
+            <el-card class="audit-card report-card" shadow="never">
+              <template #header>
+                <div class="card-header">
+                  <span class="side-tag buyer-tag">买方审计报告</span>
+                  <span class="report-score" :class="`score-${buyerDecision.level}`">
+                    总分：{{ buyerScore }}
+                  </span>
+                </div>
+              </template>
+              <el-alert
+                :title="buyerDecision.label"
+                :type="buyerDecision.level as any"
+                :description="buyerDecision.action"
+                :closable="false"
+                style="margin-bottom:12px"
+              />
+              <div class="report-section">
+                <div class="report-section-title">【专业视点】</div>
+                <div v-for="(line, i) in expertLines" :key="'be'+i" class="report-line">{{ line }}</div>
+              </div>
+              <el-divider style="margin:10px 0" />
+              <div class="report-section">
+                <div class="report-section-title">【换成白话】</div>
+                <div v-for="(line, i) in plainLines" :key="'bp'+i" class="report-line plain">{{ line }}</div>
+              </div>
+            </el-card>
+          </div>
         </transition>
       </el-col>
     </el-row>
@@ -563,55 +566,66 @@ onUnmounted(() => {
   min-height: calc(100vh - 56px);
 }
 
-/* 顶部决策条 */
+/* 顶部双评分条 */
 .decision-bar {
   background: #fff;
   border: 1px solid #e4e7ed;
   border-radius: 6px;
-  padding: 12px 20px;
+  padding: 12px 24px;
   display: flex;
   align-items: center;
   gap: 16px;
   margin-bottom: 16px;
-  flex-wrap: wrap;
 }
+
+.side-score {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.score-divider {
+  width: 1px;
+  height: 40px;
+  background: #e4e7ed;
+}
+
+.side-tag {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 10px;
+}
+.seller-tag { background: #ecf5ff; color: #409eff; }
+.buyer-tag  { background: #fff0f7; color: #ff4da2; }
 
 .score-display {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 80px;
+  min-width: 60px;
 }
 .score-display.level-danger  .score-value { color: #f56c6c; }
 .score-display.level-warning .score-value { color: #e6a23c; }
 .score-display.level-success .score-value { color: #67c23a; }
 
-.score-label {
-  font-size: 11px;
-  color: #909399;
-}
 .score-value {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 800;
   line-height: 1.2;
   color: #2c3e50;
 }
 
 .decision-badge {
-  padding: 4px 14px;
+  padding: 3px 12px;
   border-radius: 20px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
 }
 .badge-danger  { background: #fef0f0; color: #f56c6c; }
 .badge-warning { background: #fdf6ec; color: #e6a23c; }
 .badge-success { background: #f0f9eb; color: #67c23a; }
-
-.decision-action {
-  font-size: 12px;
-  color: #606266;
-  flex: 1;
-}
 
 /* 卡片 */
 .audit-card {
@@ -627,33 +641,6 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-/* 视角切换按钮 */
-.side-toggle {
-  display: flex;
-  gap: 8px;
-}
-.side-btn {
-  flex: 1;
-  padding: 8px 16px;
-  border: 1.5px solid #e4e7ed;
-  border-radius: 6px;
-  background: #fff;
-  color: #606266;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.side-btn:hover {
-  border-color: #409eff;
-  color: #409eff;
-}
-.side-btn.active {
-  border-color: #409eff;
-  background: #ecf5ff;
-  color: #409eff;
 }
 
 /* Radio Card */
@@ -726,7 +713,7 @@ onUnmounted(() => {
 /* 仪表盘 */
 .gauge-chart {
   width: 100%;
-  height: 220px;
+  height: 200px;
 }
 .gauge-legend {
   display: flex;
@@ -734,6 +721,7 @@ onUnmounted(() => {
   justify-content: center;
   font-size: 11px;
   color: #606266;
+  margin-top: 8px;
 }
 .legend-item {
   display: flex;
@@ -747,9 +735,15 @@ onUnmounted(() => {
   display: inline-block;
 }
 
-/* 报告 */
+/* 双报告 */
+.report-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .report-score {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
 }
 .report-score.score-danger  { color: #f56c6c; }
@@ -757,20 +751,19 @@ onUnmounted(() => {
 .report-score.score-success { color: #67c23a; }
 
 .report-section-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
   color: #409eff;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .report-line {
-  font-size: 12px;
+  font-size: 11px;
   color: #2c3e50;
-  line-height: 1.7;
-  margin-bottom: 6px;
+  line-height: 1.6;
+  margin-bottom: 5px;
 }
 .report-line.plain {
   color: #606266;
-  font-size: 12px;
 }
 
 .report-btn-wrap {
