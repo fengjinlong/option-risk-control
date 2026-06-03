@@ -1,31 +1,50 @@
 <script setup lang="ts">
-import { onMounted, reactive, onUnmounted } from 'vue'
+import { onMounted, reactive, onUnmounted, ref, nextTick } from 'vue'
 import AppHeader from '../components/AppHeader.vue'
 import * as echarts from 'echarts/core'
 import { GaugeChart } from 'echarts/charts'
 import { CanvasRenderer } from 'echarts/renderers'
 import { TooltipComponent } from 'echarts/components'
+import request from '../utils/request'
 
 echarts.use([GaugeChart, CanvasRenderer, TooltipComponent])
 
-// ── Two-layer gauge builder (dark bg arc + colored progress arc) ─────────────
+// ── API types ─────────────────────────────────────────────────────────────────
+interface MacroSentimentRadarResponse {
+  status: string
+  extracted_at_utc: string
+  crypto_market: {
+    status: 'success' | 'failed'
+    error_msg?: string
+    current_value: number
+    year_min: number
+    year_max: number
+    sentiment_rank_pct: number
+    sentiment_percentile_pct: number
+  }
+  us_stock_market: {
+    status: 'success' | 'failed'
+    error_msg?: string
+    current_value: number
+    year_min: number
+    year_max: number
+    sentiment_rank_pct: number
+    sentiment_percentile_pct: number
+  }
+}
+
+// ── Two-layer gauge builder (bg arc + colored progress arc) ──────────────────
 function buildGauge(
   el: HTMLDivElement,
   value: number,
   max: number,
-  // gradient stops for the colored arc only (full 0→1 range = 0→max)
   colorStops: { offset: number; color: string }[],
   pointerColor: string,
-  // optional VIX-style reversed color mapping (low=green, high=red)
   reversed?: boolean,
 ): echarts.ECharts {
   const instance = echarts.init(el, undefined, { renderer: 'canvas' })
-
-  // clamp value so it never exactly equals max (avoids render glitch)
   const safeValue = Math.min(value, max * 0.9999)
   const progressRatio = safeValue / max
-
-  // reversed: invert the color stops so low value = green end, high = red end
   const stops = reversed
     ? colorStops.map((s) => ({ offset: 1 - s.offset, color: s.color }))
     : colorStops
@@ -35,7 +54,7 @@ function buildGauge(
     animationDuration: 1400,
     animationEasing: 'cubicOut' as const,
     series: [
-      // Layer 1 – dark background arc (full 240° sweep, never changes)
+      // Layer 1 – background arc
       {
         type: 'gauge',
         center: ['50%', '60%'],
@@ -46,11 +65,7 @@ function buildGauge(
         max: 100,
         splitNumber: 5,
         axisLine: {
-          lineStyle: {
-            width: 16,
-            color: [[1, '#bfdbfe']],
-            roundCap: true,
-          },
+          lineStyle: { width: 16, color: [[1, '#bfdbfe']], roundCap: true },
         },
         axisTick: { show: false },
         splitLine: { show: false },
@@ -60,7 +75,7 @@ function buildGauge(
         title: { show: false },
         data: [{ value: 0 }],
       },
-      // Layer 2 – colored progress arc (startAngle fixed, endAngle animated by value)
+      // Layer 2 – tick marks + pointer + center detail
       {
         type: 'gauge',
         center: ['50%', '60%'],
@@ -71,26 +86,19 @@ function buildGauge(
         max: 100,
         splitNumber: 5,
         axisLine: {
-          lineStyle: {
-            width: 16,
-            color: [[1, 'transparent']], // background transparent; progress drawn below
-            roundCap: true,
-          },
+          lineStyle: { width: 16, color: [[1, 'transparent']], roundCap: true },
         },
-        // Progress arc via axisTick-like technique (show a single thick tick as progress marker)
         progress: {
           show: true,
           width: 16,
           roundCap: true,
           itemStyle: { color: stops[stops.length - 1].color },
         },
-        // Tick marks
         axisTick: {
           distance: -22,
           length: 8,
           lineStyle: { color: '#93c5fd', width: 1.5 },
         },
-        // Major split lines
         splitLine: {
           distance: -26,
           length: 14,
@@ -103,7 +111,6 @@ function buildGauge(
           fontFamily: '"JetBrains Mono", "Helvetica Neue", monospace',
           formatter: (v: number) => (v % 25 === 0 ? String(Math.round(v)) : ''),
         },
-        // Needle
         pointer: {
           icon: 'path://M12.8,0.7l12,40.1H0.7L12.8,0.7z',
           length: '65%',
@@ -115,7 +122,6 @@ function buildGauge(
             shadowBlur: 16,
           },
         },
-        // Center detail
         detail: {
           valueAnimation: true,
           formatter: (v: number) => `{val|${v.toFixed(1)}}{unit|}`,
@@ -146,7 +152,7 @@ function buildGauge(
         },
         data: [{ value: safeValue, name: '' }],
       },
-      // Layer 3 – pure color fill arc (0 → current value) using a custom overlay
+      // Layer 3 – transparent bridge (prevents flash)
       {
         type: 'gauge',
         center: ['50%', '60%'],
@@ -170,21 +176,17 @@ function buildGauge(
         title: { show: false },
         data: [{ value: 0 }],
       },
-      // Layer 4 – colored arc overlay that fills from 0 to value
+      // Layer 4 – colored progress arc (0 → current value)
       {
         type: 'gauge',
         center: ['50%', '60%'],
         radius: '92%',
         startAngle: 210,
-        endAngle: 210 - 240 * progressRatio, // sweep proportional to value
+        endAngle: 210 - 240 * progressRatio,
         min: 0,
         max: 100,
         axisLine: {
-          lineStyle: {
-            width: 16,
-            color: stops,
-            roundCap: true,
-          },
+          lineStyle: { width: 16, color: stops, roundCap: true },
         },
         axisTick: { show: false },
         splitLine: { show: false },
@@ -200,10 +202,10 @@ function buildGauge(
   return instance
 }
 
-// ── chart refs ───────────────────────────────────────────────────────────────
-let charts: any[] = []
+// ── chart instances ────────────────────────────────────────────────────────────
+let charts: echarts.ECharts[] = []
 
-// ── progress bar builder ─────────────────────────────────────────────────────
+// ── progress bar ─────────────────────────────────────────────────────────────
 function buildProgressBar(
   el: HTMLDivElement,
   label: string,
@@ -220,17 +222,49 @@ function buildProgressBar(
     </div>`
 }
 
+// ── sentiment label ───────────────────────────────────────────────────────────
+function sentimentLabel(value: number): string {
+  if (value <= 20) return '极度恐慌 (Extreme Fear)'
+  if (value <= 40) return '恐慌 (Fear)'
+  if (value <= 60) return '中性 (Neutral)'
+  if (value <= 80) return '贪婪 (Greed)'
+  return '极度贪婪 (Extreme Greed)'
+}
+
+function sentimentClass(value: number): string {
+  if (value <= 40) return 'fear'
+  if (value >= 60) return 'greed'
+  return 'neutral'
+}
+
 // ── reactive state ────────────────────────────────────────────────────────────
-const crypto = reactive({ value: 32, ivRank: 42.5, ivPercentile: 38.1 })
-const usStock = reactive({ value: 68, ivRank: 18.2, ivPercentile: 22.4 })
+const crypto = reactive({
+  value: 0, yearMin: 0, yearMax: 100,
+  ivRank: 0, ivPercentile: 0,
+})
+const usStock = reactive({
+  value: 0, yearMin: 0, yearMax: 100,
+  ivRank: 0, ivPercentile: 0,
+})
 const vix = reactive({ value: 22.5, vixRank: 78.9, vixPercentile: 82.1 })
 
-// ── mount ─────────────────────────────────────────────────────────────────────
-onMounted(() => {
-  // Crypto Fear & Greed (value=32 → orange/fear)
-  charts.push(
-    buildGauge(
-      document.getElementById('gauge-crypto') as HTMLDivElement,
+const loading = ref(true)
+const apiError = ref('')
+const lastUpdated = ref('')
+
+// ── update UI from data ───────────────────────────────────────────────────────
+function renderCrypto(data: MacroSentimentRadarResponse['crypto_market']) {
+  crypto.value = data.current_value
+  crypto.yearMin = data.year_min
+  crypto.yearMax = data.year_max
+  crypto.ivRank = data.sentiment_rank_pct
+  crypto.ivPercentile = data.sentiment_percentile_pct
+
+  const el = document.getElementById('gauge-crypto') as HTMLDivElement
+  if (el) {
+    charts[0]?.dispose()
+    charts[0] = buildGauge(
+      el,
       crypto.value, 100,
       [
         { offset: 0, color: '#EF4444' },
@@ -239,22 +273,31 @@ onMounted(() => {
         { offset: 0.75, color: '#22C55E' },
         { offset: 1, color: '#22C55E' },
       ],
-      '#F97316', // pointer orange
-    ),
-  )
-  buildProgressBar(
-    document.getElementById('crypto-rank') as HTMLDivElement,
-    'IV Rank', crypto.ivRank, '#818cf8',
-  )
-  buildProgressBar(
-    document.getElementById('crypto-pct') as HTMLDivElement,
-    'IV Percentile', crypto.ivPercentile, '#f87171',
-  )
+      '#F97316',
+    )
+  }
+  buildProgressBar(document.getElementById('crypto-rank') as HTMLDivElement, 'IV Rank', crypto.ivRank, '#818cf8')
+  buildProgressBar(document.getElementById('crypto-pct') as HTMLDivElement, 'IV Percentile', crypto.ivPercentile, '#f87171')
 
-  // US Stock Fear & Greed (value=68 → green/greed)
-  charts.push(
-    buildGauge(
-      document.getElementById('gauge-usstock') as HTMLDivElement,
+  const sentimentEl = document.getElementById('crypto-sentiment')
+  if (sentimentEl) {
+    sentimentEl.textContent = sentimentLabel(crypto.value)
+    sentimentEl.className = `gauge-sentiment ${sentimentClass(crypto.value)}`
+  }
+}
+
+function renderUsStock(data: MacroSentimentRadarResponse['us_stock_market']) {
+  usStock.value = data.current_value
+  usStock.yearMin = data.year_min
+  usStock.yearMax = data.year_max
+  usStock.ivRank = data.sentiment_rank_pct
+  usStock.ivPercentile = data.sentiment_percentile_pct
+
+  const el = document.getElementById('gauge-usstock') as HTMLDivElement
+  if (el) {
+    charts[1]?.dispose()
+    charts[1] = buildGauge(
+      el,
       usStock.value, 100,
       [
         { offset: 0, color: '#EF4444' },
@@ -263,22 +306,50 @@ onMounted(() => {
         { offset: 0.75, color: '#84CC16' },
         { offset: 1, color: '#22C55E' },
       ],
-      '#22C55E', // pointer green
-    ),
-  )
-  buildProgressBar(
-    document.getElementById('usstock-rank') as HTMLDivElement,
-    'IV Rank', usStock.ivRank, '#818cf8',
-  )
-  buildProgressBar(
-    document.getElementById('usstock-pct') as HTMLDivElement,
-    'IV Percentile', usStock.ivPercentile, '#22c55e',
-  )
+      '#22C55E',
+    )
+  }
+  buildProgressBar(document.getElementById('usstock-rank') as HTMLDivElement, 'IV Rank', usStock.ivRank, '#818cf8')
+  buildProgressBar(document.getElementById('usstock-pct') as HTMLDivElement, 'IV Percentile', usStock.ivPercentile, '#22c55e')
 
-  // VIX (value=22.5 → reversed: high=red, low=green)
-  charts.push(
-    buildGauge(
-      document.getElementById('gauge-vix') as HTMLDivElement,
+  const sentimentEl = document.getElementById('usstock-sentiment')
+  if (sentimentEl) {
+    sentimentEl.textContent = sentimentLabel(usStock.value)
+    sentimentEl.className = `gauge-sentiment ${sentimentClass(usStock.value)}`
+  }
+}
+
+// ── fetch data ───────────────────────────────────────────────────────────────
+async function fetchData() {
+  try {
+    const data = await request.get('/api/v1/market/macro-sentiment-radar') as MacroSentimentRadarResponse
+    if (data.status !== 'success') throw new Error('API status not success')
+
+    if (data.crypto_market.status === 'success') {
+      renderCrypto(data.crypto_market)
+    }
+    if (data.us_stock_market.status === 'success') {
+      renderUsStock(data.us_stock_market)
+    }
+    lastUpdated.value = data.extracted_at_utc
+    apiError.value = ''
+  } catch (err: any) {
+    apiError.value = err?.message ?? '数据加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+// ── mount ─────────────────────────────────────────────────────────────────────
+onMounted(async () => {
+  await fetchData()
+  await nextTick()
+
+  // VIX remains static demo data
+  const el = document.getElementById('gauge-vix') as HTMLDivElement
+  if (el) {
+    charts[2] = buildGauge(
+      el,
       vix.value, 60,
       [
         { offset: 0, color: '#22C55E' },
@@ -287,18 +358,12 @@ onMounted(() => {
         { offset: 0.6, color: '#F97316' },
         { offset: 1, color: '#EF4444' },
       ],
-      '#F97316', // pointer orange
-      true, // reversed
-    ),
-  )
-  buildProgressBar(
-    document.getElementById('vix-rank') as HTMLDivElement,
-    'VIX Rank', vix.vixRank, '#f87171',
-  )
-  buildProgressBar(
-    document.getElementById('vix-pct') as HTMLDivElement,
-    'VIX Percentile', vix.vixPercentile, '#fb923c',
-  )
+      '#F97316',
+      true,
+    )
+  }
+  buildProgressBar(document.getElementById('vix-rank') as HTMLDivElement, 'VIX Rank', vix.vixRank, '#f87171')
+  buildProgressBar(document.getElementById('vix-pct') as HTMLDivElement, 'VIX Percentile', vix.vixPercentile, '#fb923c')
 })
 
 onUnmounted(() => {
@@ -323,7 +388,7 @@ onUnmounted(() => {
             <span class="gauge-card-badge">加密市场</span>
           </div>
           <div id="gauge-crypto" class="gauge-canvas" />
-          <div class="gauge-sentiment fear">恐慌 (Fear)</div>
+          <div id="crypto-sentiment" class="gauge-sentiment fear">–</div>
           <div class="gauge-metrics">
             <div id="crypto-rank" class="metric-bar" />
             <div id="crypto-pct" class="metric-bar" />
@@ -337,7 +402,7 @@ onUnmounted(() => {
             <span class="gauge-card-badge greed">美股市场</span>
           </div>
           <div id="gauge-usstock" class="gauge-canvas" />
-          <div class="gauge-sentiment greed">贪婪 (Greed)</div>
+          <div id="usstock-sentiment" class="gauge-sentiment greed">–</div>
           <div class="gauge-metrics">
             <div id="usstock-rank" class="metric-bar" />
             <div id="usstock-pct" class="metric-bar" />
@@ -357,6 +422,20 @@ onUnmounted(() => {
             <div id="vix-pct" class="metric-bar" />
           </div>
         </div>
+      </div>
+
+      <!-- ── Status bar ──────────────────────────────────────────────── -->
+      <div class="status-bar">
+        <template v-if="loading">
+          <span class="status-loading">⏳ 数据加载中...</span>
+        </template>
+        <template v-else-if="apiError">
+          <span class="status-error">⚠️ {{ apiError }}</span>
+        </template>
+        <template v-else>
+          <span class="status-ok">✅ 数据已更新</span>
+          <span class="status-time">· 最后刷新: {{ lastUpdated }}</span>
+        </template>
       </div>
 
       <!-- ── Comprehensive Market Summary ───────────────────────────── -->
@@ -519,6 +598,24 @@ onUnmounted(() => {
 .gauge-sentiment.greed {
   color: #16a34a;
 }
+
+.gauge-sentiment.neutral {
+  color: #3b82f6;
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
+  padding: 0 4px;
+}
+
+.status-loading { color: #60a5fa; }
+.status-error { color: #ef4444; }
+.status-ok { color: #22c55e; }
+.status-time { color: #9ca3af; }
 
 .gauge-metrics {
   width: 100%;
