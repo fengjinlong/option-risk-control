@@ -138,3 +138,20 @@ export interface TermStructureResponse {
     }[]; // 100%强关联嵌套：当前 Delta 偏斜曲线下沿着时间轴分布的存续到期交割点阵数组
   }[]; // 全嵌套树状全期限全偏斜隐含波动率矩阵曲线数组（前端直接循环此数组即可渲染出包含多条偏斜梯度的期限结构全景走势图）
 }
+
+export interface RvMomentumPoint {
+  time: string   // 13位毫秒级历史整点时间戳
+  value: string // 对应的波动率/动量数值字符串
+}
+
+export interface RvMomentumCurve {
+  name: '7' | '7M' // "7" = 7D RV 绝对值线，"7M" = RV 动量加速度线
+  data: RvMomentumPoint[]
+}
+
+export interface RvMomentumResponse {
+  succ: boolean
+  code: number
+  message: string
+  value: RvMomentumCurve[]
+}
