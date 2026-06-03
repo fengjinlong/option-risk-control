@@ -7,6 +7,7 @@ import Chart25dFly from './charts/Chart25dFly.vue'
 import ChartTermStructure from './charts/ChartTermStructure.vue'
 import ChartScore from './charts/ChartScore.vue'
 import ChartRvMomentum from './charts/ChartRvMomentum.vue'
+import ChartTimeLapseIv from './charts/ChartTimeLapseIv.vue'
 </script>
 
 <template>
@@ -18,6 +19,7 @@ import ChartRvMomentum from './charts/ChartRvMomentum.vue'
         <!-- <ChartVolCone /> -->
         <ChartIvRv />
         <ChartRvMomentum />
+        <ChartTimeLapseIv />
         <!-- <Chart25dRr /> -->
         <!-- <Chart25dFly /> -->
         <!-- <ChartTermStructure /> -->

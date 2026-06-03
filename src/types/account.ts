@@ -155,3 +155,20 @@ export interface RvMomentumResponse {
   message: string
   value: RvMomentumCurve[]
 }
+
+export interface TimeLapseIvPoint {
+  x: string // 固定物理交割到期日字符串
+  y: string // 偏斜/凸度数值字符串
+}
+
+export interface TimeLapseIvCurve {
+  name: string // 历史审计快照时间戳（13位毫秒）
+  points: TimeLapseIvPoint[]
+}
+
+export interface TimeLapseIvResponse {
+  succ: boolean
+  code: number
+  message: string
+  value: TimeLapseIvCurve[]
+}
