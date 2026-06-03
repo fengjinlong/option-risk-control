@@ -1,9 +1,45 @@
 <script setup lang="ts">
+import { onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { useRiskWorkspace } from '../composables/useRiskWorkspace'
+import request from '../utils/request'
 
 const router = useRouter()
-const { prices, volRadar } = useRiskWorkspace()
+
+const prices = reactive({
+  BTC: 0,
+  ETH: 0,
+  SOL: 0,
+  LINK: 0,
+  CRV: 0,
+})
+
+const volRadar = reactive({
+  BTC: { iv_percentile_1y: 0 },
+  ETH: { iv_percentile_1y: 0 },
+})
+
+onMounted(async () => {
+  try {
+    const priceRes: any = await request.get('/api/v1/market/prices')
+    if (priceRes?.data) {
+      prices.BTC = priceRes.data.BTC ?? 0
+      prices.ETH = priceRes.data.ETH ?? 0
+      prices.SOL = priceRes.data.SOL ?? 0
+      prices.LINK = priceRes.data.LINK ?? 0
+      prices.CRV = priceRes.data.CRV ?? 0
+    }
+    const volRes: any = await request.get('/api/v1/market/global-vol-radar')
+    console.log(volRes)
+    if (volRes?.data.BTC) {
+      volRadar.BTC.iv_percentile_1y = volRes.data.BTC.iv_percentile_1y ?? 0
+    }
+    if (volRes?.data.ETH) {
+      volRadar.ETH.iv_percentile_1y = volRes.data.ETH.iv_percentile_1y ?? 0
+    }
+  } catch (e) {
+    // ignore
+  }
+})
 
 function go(path: string) {
   router.push(path)
@@ -26,14 +62,14 @@ function go(path: string) {
       <el-button type="primary" size="small" @click="go('/position-risk')">持仓风控评估</el-button>
     </div>
     <div class="header-right">
-      <el-tag type="success" size="small">BTC IV%: {{ volRadar.data?.BTC?.iv_percentile_1y ?? '--' }}</el-tag>
-      <el-tag type="success" size="small">ETH IV%: {{ volRadar.data?.ETH?.iv_percentile_1y ?? '--' }}</el-tag>
-      <el-tag type="danger" size="small">BTC: {{ prices.data.data?.BTC ?? '--' }}</el-tag>
-      <el-tag type="danger" size="small">ETH: {{ prices.data.data?.ETH ?? '--' }}</el-tag>
-      <el-tag type="danger" size="small">SOL: {{ prices.data.data?.SOL ?? '--' }}</el-tag>
-      <el-tag type="danger" size="small">LINK: {{ prices.data.data?.LINK ?? '--' }}</el-tag>
-      <el-tag type="danger" size="small">CRV: {{ prices.data.data?.CRV ?? '--' }}</el-tag>
-      <el-tag type="success" size="small">● LIVE</el-tag>
+      <el-tag type="success" size="small">BTC IV%: {{ volRadar.BTC.iv_percentile_1y || '--' }}</el-tag>
+      <el-tag type="success" size="small">ETH IV%: {{ volRadar.ETH.iv_percentile_1y || '--' }}</el-tag>
+      <el-tag type="danger" size="small">BTC: {{ prices.BTC || '--' }}</el-tag>
+      <el-tag type="danger" size="small">ETH: {{ prices.ETH || '--' }}</el-tag>
+      <el-tag type="danger" size="small">SOL: {{ prices.SOL || '--' }}</el-tag>
+      <el-tag type="danger" size="small">LINK: {{ prices.LINK || '--' }}</el-tag>
+      <el-tag type="danger" size="small">CRV: {{ prices.CRV || '--' }}</el-tag>
+      <!-- <el-tag type="success" size="small">● LIVE</el-tag> -->
     </div>
   </header>
 </template>
