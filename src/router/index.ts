@@ -4,6 +4,7 @@ import DataExplain from '../views/DataExplain.vue'
 import Calculator from '../views/Calculator.vue'
 import IVAlert from '../views/IVAlert.vue'
 import PositionRisk from '../views/positionRisk.vue'
+import PositionAudit from '../views/PositionAudit.vue'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -35,7 +36,12 @@ const router = createRouter({
       path: '/position-risk',
       name: 'position-risk',
       component: PositionRisk,
-    }
+    },
+    {
+      path: '/position-audit',
+      name: 'position-audit',
+      component: PositionAudit,
+    },
   ],
 })
 

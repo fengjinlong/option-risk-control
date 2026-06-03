@@ -11,6 +11,7 @@ import ChartTimeLapseIv from './charts/ChartTimeLapseIv.vue'
 import ChartTimeLapseIvFly from './charts/ChartTimeLapseIvFly.vue'
 import ChartAtmVolV2 from './charts/ChartAtmVolV2.vue'
 import ChartAtmFwdIv from './charts/ChartAtmFwdIv.vue'
+import PositionAudit from './PositionAudit.vue'
 </script>
 
 <template>
@@ -31,7 +32,7 @@ import ChartAtmFwdIv from './charts/ChartAtmFwdIv.vue'
         <!-- <ChartTermStructure /> -->
         <!-- 评分 -->
       </div>
-      <!-- <ChartScore /> -->
+      <PositionAudit />
     </div>
   </div>
 </template>
