@@ -172,3 +172,20 @@ export interface TimeLapseIvResponse {
   message: string
   value: TimeLapseIvCurve[]
 }
+
+export interface AtmVolatilityV2Response {
+  succ: boolean
+  code: number
+  message: string
+  value: {
+    exchange: 'BYBIT' | string
+    timeMilli: number
+    lineGraphList: {
+      name: 'ATM IV' | 'FWD IV' | string
+      points: {
+        x: string
+        y: string
+      }[]
+    }[]
+  }[]
+}
