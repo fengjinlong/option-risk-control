@@ -34,6 +34,13 @@ interface MacroSentimentRadarResponse {
 }
 
 // ── Two-layer gauge builder (bg arc + colored progress arc) ──────────────────
+function gaugeColorAt(stops: { offset: number; color: string }[], ratio: number): string {
+  for (let i = 0; i < stops.length; i++) {
+    if (ratio <= stops[i].offset) return stops[i].color
+  }
+  return stops[stops.length - 1].color
+}
+
 function buildGauge(
   el: HTMLDivElement,
   value: number,
@@ -46,8 +53,9 @@ function buildGauge(
   const safeValue = Math.min(value, max * 0.9999)
   const progressRatio = safeValue / max
   const stops = reversed
-    ? colorStops.map((s) => ({ offset: 1 - s.offset, color: s.color }))
+    ? colorStops.slice().reverse().map((s) => ({ offset: 1 - s.offset, color: s.color }))
     : colorStops
+  const currentColor = gaugeColorAt(stops, progressRatio)
 
   const option = {
     animation: true,
@@ -92,7 +100,7 @@ function buildGauge(
           show: true,
           width: 16,
           roundCap: true,
-          itemStyle: { color: stops[stops.length - 1].color },
+          itemStyle: { color: currentColor },
         },
         axisTick: {
           distance: -22,
@@ -227,14 +235,23 @@ function sentimentLabel(value: number): string {
   if (value <= 20) return '极度恐慌 (Extreme Fear)'
   if (value <= 40) return '恐慌 (Fear)'
   if (value <= 60) return '中性 (Neutral)'
-  if (value <= 80) return '贪婪 (Greed)'
+  if (value <= 75) return '贪婪 (Greed)'
   return '极度贪婪 (Extreme Greed)'
 }
 
 function sentimentClass(value: number): string {
   if (value <= 40) return 'fear'
-  if (value >= 60) return 'greed'
-  return 'neutral'
+  if (value <= 60) return 'neutral'
+  if (value <= 75) return 'greed'
+  return 'extreme-greed'
+}
+
+function sentimentColor(value: number): string {
+  if (value <= 20) return '#166534'
+  if (value <= 40) return '#16A34A'
+  if (value <= 60) return '#D97706'
+  if (value <= 75) return '#EA580C'
+  return '#991B1B'
 }
 
 // ── reactive state ────────────────────────────────────────────────────────────
@@ -246,7 +263,7 @@ const usStock = reactive({
   value: 0, yearMin: 0, yearMax: 100,
   ivRank: 0, ivPercentile: 0,
 })
-const vix = reactive({ value: 22.5, vixRank: 78.9, vixPercentile: 82.1 })
+const vix = reactive({ value: 92.5, vixRank: 58.9, vixPercentile: 82.1 })
 
 const loading = ref(true)
 const apiError = ref('')
@@ -267,13 +284,18 @@ function renderCrypto(data: MacroSentimentRadarResponse['crypto_market']) {
       el,
       crypto.value, 100,
       [
-        { offset: 0, color: '#EF4444' },
-        { offset: 0.35, color: '#F97316' },
-        { offset: 0.55, color: '#EAB308' },
-        { offset: 0.75, color: '#22C55E' },
-        { offset: 1, color: '#22C55E' },
+        { offset: 0, color: '#166534' },
+        { offset: 0.20, color: '#166534' },
+        { offset: 0.20, color: '#16A34A' },
+        { offset: 0.40, color: '#16A34A' },
+        { offset: 0.40, color: '#D97706' },
+        { offset: 0.60, color: '#D97706' },
+        { offset: 0.60, color: '#EA580C' },
+        { offset: 0.75, color: '#EA580C' },
+        { offset: 0.75, color: '#991B1B' },
+        { offset: 1, color: '#991B1B' },
       ],
-      '#F97316',
+      '#16A34A',
     )
   }
   buildProgressBar(document.getElementById('crypto-rank') as HTMLDivElement, 'IV Rank', crypto.ivRank, '#818cf8')
@@ -283,6 +305,7 @@ function renderCrypto(data: MacroSentimentRadarResponse['crypto_market']) {
   if (sentimentEl) {
     sentimentEl.textContent = sentimentLabel(crypto.value)
     sentimentEl.className = `gauge-sentiment ${sentimentClass(crypto.value)}`
+    sentimentEl.style.color = sentimentColor(crypto.value)
   }
 }
 
@@ -300,13 +323,18 @@ function renderUsStock(data: MacroSentimentRadarResponse['us_stock_market']) {
       el,
       usStock.value, 100,
       [
-        { offset: 0, color: '#EF4444' },
-        { offset: 0.35, color: '#F97316' },
-        { offset: 0.55, color: '#EAB308' },
-        { offset: 0.75, color: '#84CC16' },
-        { offset: 1, color: '#22C55E' },
+        { offset: 0, color: '#166534' },
+        { offset: 0.24, color: '#166534' },
+        { offset: 0.24, color: '#16A34A' },
+        { offset: 0.44, color: '#16A34A' },
+        { offset: 0.44, color: '#D97706' },
+        { offset: 0.55, color: '#D97706' },
+        { offset: 0.55, color: '#EA580C' },
+        { offset: 0.75, color: '#EA580C' },
+        { offset: 0.75, color: '#991B1B' },
+        { offset: 1, color: '#991B1B' },
       ],
-      '#22C55E',
+      '#EA580C',
     )
   }
   buildProgressBar(document.getElementById('usstock-rank') as HTMLDivElement, 'IV Rank', usStock.ivRank, '#818cf8')
@@ -316,6 +344,7 @@ function renderUsStock(data: MacroSentimentRadarResponse['us_stock_market']) {
   if (sentimentEl) {
     sentimentEl.textContent = sentimentLabel(usStock.value)
     sentimentEl.className = `gauge-sentiment ${sentimentClass(usStock.value)}`
+    sentimentEl.style.color = sentimentColor(usStock.value)
   }
 }
 
@@ -352,13 +381,18 @@ onMounted(async () => {
       el,
       vix.value, 60,
       [
-        { offset: 0, color: '#22C55E' },
-        { offset: 0.25, color: '#84CC16' },
-        { offset: 0.4, color: '#EAB308' },
-        { offset: 0.6, color: '#F97316' },
-        { offset: 1, color: '#EF4444' },
+        { offset: 0, color: '#991B1B' },
+        { offset: 0.20, color: '#991B1B' },
+        { offset: 0.20, color: '#EA580C' },
+        { offset: 0.25, color: '#EA580C' },
+        { offset: 0.25, color: '#D97706' },
+        { offset: 0.333, color: '#D97706' },
+        { offset: 0.333, color: '#16A34A' },
+        { offset: 0.50, color: '#16A34A' },
+        { offset: 0.50, color: '#166534' },
+        { offset: 1, color: '#166534' },
       ],
-      '#F97316',
+      '#16A34A',
       true,
     )
   }
@@ -388,7 +422,7 @@ onUnmounted(() => {
             <span class="gauge-card-badge">加密市场</span>
           </div>
           <div id="gauge-crypto" class="gauge-canvas" />
-          <div id="crypto-sentiment" class="gauge-sentiment fear">–</div>
+          <div id="crypto-sentiment" class="gauge-sentiment">–</div>
           <div class="gauge-metrics">
             <div id="crypto-rank" class="metric-bar" />
             <div id="crypto-pct" class="metric-bar" />
@@ -402,7 +436,7 @@ onUnmounted(() => {
             <span class="gauge-card-badge greed">美股市场</span>
           </div>
           <div id="gauge-usstock" class="gauge-canvas" />
-          <div id="usstock-sentiment" class="gauge-sentiment greed">–</div>
+          <div id="usstock-sentiment" class="gauge-sentiment">–</div>
           <div class="gauge-metrics">
             <div id="usstock-rank" class="metric-bar" />
             <div id="usstock-pct" class="metric-bar" />
@@ -591,18 +625,6 @@ onUnmounted(() => {
   margin-bottom: 12px;
 }
 
-.gauge-sentiment.fear {
-  color: #ea580c;
-}
-
-.gauge-sentiment.greed {
-  color: #16a34a;
-}
-
-.gauge-sentiment.neutral {
-  color: #3b82f6;
-}
-
 .status-bar {
   display: flex;
   align-items: center;
@@ -612,10 +634,21 @@ onUnmounted(() => {
   padding: 0 4px;
 }
 
-.status-loading { color: #60a5fa; }
-.status-error { color: #ef4444; }
-.status-ok { color: #22c55e; }
-.status-time { color: #9ca3af; }
+.status-loading {
+  color: #60a5fa;
+}
+
+.status-error {
+  color: #ef4444;
+}
+
+.status-ok {
+  color: #22c55e;
+}
+
+.status-time {
+  color: #9ca3af;
+}
 
 .gauge-metrics {
   width: 100%;
