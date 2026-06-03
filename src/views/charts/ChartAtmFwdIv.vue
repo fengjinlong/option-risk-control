@@ -108,7 +108,15 @@ function updateChart(data: AtmVolatilityV2Response['value']) {
 async function fetchData() {
   loading.value = true
   try {
-    const res = await request.get('/api/v1/market/atm-vol-v2') as AtmVolatilityV2Response
+    const now = new Date()
+    const t0 = now.getTime()
+    // 昨天16点
+    const yesterday = new Date(now)
+    yesterday.setDate(yesterday.getDate() - 1)
+    yesterday.setHours(16, 0, 0, 0)
+    const t1 = yesterday.getTime()
+
+    const res = await request.get('/api/v1/market/atm-vol-v2', { params: { t0, t1 } }) as AtmVolatilityV2Response
     if (res.succ && res.value) {
       updateChart(res.value)
     }
