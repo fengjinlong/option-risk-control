@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, onUnmounted, ref, nextTick } from 'vue'
+import { onMounted, reactive, onUnmounted, ref } from 'vue'
 import AppHeader from '../components/AppHeader.vue'
 import * as echarts from 'echarts/core'
 import { GaugeChart } from 'echarts/charts'
@@ -33,6 +33,20 @@ interface MacroSentimentRadarResponse {
   }
 }
 
+interface VixRiskRadarResponse {
+  status: 'success' | 'failed'
+  is_live_data_streaming: boolean
+  error_msg?: string
+  metrics: {
+    live_vix_price: number
+    rolling_1y_min: number
+    rolling_1y_max: number
+    vix_rank_style_pct: number
+    vix_percentile_style_pct: number
+    sample_size_days: number
+  }
+}
+
 // ── Two-layer gauge builder (bg arc + colored progress arc) ──────────────────
 function gaugeColorAt(stops: { offset: number; color: string }[], ratio: number): string {
   for (let i = 0; i < stops.length; i++) {
@@ -52,8 +66,13 @@ function buildGauge(
   const instance = echarts.init(el, undefined, { renderer: 'canvas' })
   const safeValue = Math.min(value, max * 0.9999)
   const progressRatio = safeValue / max
+
+  // Build reversed stops: never mutate colorStops.
+  // For reversed, we want low ratio → last stop color, high ratio → first stop color.
+  // Simply map each offset to 1 - offset (swaps which end it refers to),
+  // without reversing the stop order.
   const stops = reversed
-    ? colorStops.slice().reverse().map((s) => ({ offset: 1 - s.offset, color: s.color }))
+    ? colorStops.map(s => ({ offset: 1 - s.offset, color: s.color }))
     : colorStops
   const currentColor = gaugeColorAt(stops, progressRatio)
 
@@ -194,7 +213,7 @@ function buildGauge(
         min: 0,
         max: 100,
         axisLine: {
-          lineStyle: { width: 16, color: stops, roundCap: true },
+          lineStyle: { width: 16, color: [[progressRatio, currentColor]], roundCap: true },
         },
         axisTick: { show: false },
         splitLine: { show: false },
@@ -230,8 +249,8 @@ function buildProgressBar(
     </div>`
 }
 
-// ── sentiment label ───────────────────────────────────────────────────────────
-function sentimentLabel(value: number): string {
+// ── sentiment label (Crypto / US Stock) ────────────────────────────────────────
+function fgSentimentLabel(value: number): string {
   if (value <= 20) return '极度恐慌 (Extreme Fear)'
   if (value <= 40) return '恐慌 (Fear)'
   if (value <= 60) return '中性 (Neutral)'
@@ -239,19 +258,42 @@ function sentimentLabel(value: number): string {
   return '极度贪婪 (Extreme Greed)'
 }
 
-function sentimentClass(value: number): string {
+function fgSentimentClass(value: number): string {
   if (value <= 40) return 'fear'
   if (value <= 60) return 'neutral'
   if (value <= 75) return 'greed'
   return 'extreme-greed'
 }
 
-function sentimentColor(value: number): string {
+function fgSentimentColor(value: number): string {
   if (value <= 20) return '#166534'
   if (value <= 40) return '#16A34A'
   if (value <= 60) return '#D97706'
   if (value <= 75) return '#EA580C'
   return '#991B1B'
+}
+
+// ── VIX sentiment (低值=自满/贪婪, 高值=恐慌) ──────────────────────────────────
+function vixSentimentLabel(value: number): string {
+  if (value <= 12) return '极度自满 (Extreme Complacency)'
+  if (value <= 15) return '乐观/贪婪 (Greed)'
+  if (value <= 20) return '中性 (Neutral)'
+  if (value <= 30) return '市场恐慌 (Fear)'
+  return '极度恐慌 (Extreme Fear)'
+}
+
+function vixSentimentClass(value: number): string {
+  if (value <= 15) return 'greed'
+  if (value <= 20) return 'neutral'
+  return 'fear'
+}
+
+function vixSentimentColor(value: number): string {
+  if (value <= 12) return '#991B1B'
+  if (value <= 15) return '#EA580C'
+  if (value <= 20) return '#D97706'
+  if (value <= 30) return '#16A34A'
+  return '#166534'
 }
 
 // ── reactive state ────────────────────────────────────────────────────────────
@@ -263,7 +305,7 @@ const usStock = reactive({
   value: 0, yearMin: 0, yearMax: 100,
   ivRank: 0, ivPercentile: 0,
 })
-const vix = reactive({ value: 92.5, vixRank: 58.9, vixPercentile: 82.1 })
+const vix = reactive({ value: 0, vixRank: 0, vixPercentile: 0 })
 
 const loading = ref(true)
 const apiError = ref('')
@@ -303,9 +345,9 @@ function renderCrypto(data: MacroSentimentRadarResponse['crypto_market']) {
 
   const sentimentEl = document.getElementById('crypto-sentiment')
   if (sentimentEl) {
-    sentimentEl.textContent = sentimentLabel(crypto.value)
-    sentimentEl.className = `gauge-sentiment ${sentimentClass(crypto.value)}`
-    sentimentEl.style.color = sentimentColor(crypto.value)
+    sentimentEl.textContent = fgSentimentLabel(crypto.value)
+    sentimentEl.className = `gauge-sentiment ${fgSentimentClass(crypto.value)}`
+    sentimentEl.style.color = fgSentimentColor(crypto.value)
   }
 }
 
@@ -342,41 +384,20 @@ function renderUsStock(data: MacroSentimentRadarResponse['us_stock_market']) {
 
   const sentimentEl = document.getElementById('usstock-sentiment')
   if (sentimentEl) {
-    sentimentEl.textContent = sentimentLabel(usStock.value)
-    sentimentEl.className = `gauge-sentiment ${sentimentClass(usStock.value)}`
-    sentimentEl.style.color = sentimentColor(usStock.value)
+    sentimentEl.textContent = fgSentimentLabel(usStock.value)
+    sentimentEl.className = `gauge-sentiment ${fgSentimentClass(usStock.value)}`
+    sentimentEl.style.color = fgSentimentColor(usStock.value)
   }
 }
 
-// ── fetch data ───────────────────────────────────────────────────────────────
-async function fetchData() {
-  try {
-    const data = await request.get('/api/v1/market/macro-sentiment-radar') as MacroSentimentRadarResponse
-    if (data.status !== 'success') throw new Error('API status not success')
+function renderVix(data: VixRiskRadarResponse['metrics']) {
+  vix.value = data.live_vix_price
+  vix.vixRank = data.vix_rank_style_pct
+  vix.vixPercentile = data.vix_percentile_style_pct
 
-    if (data.crypto_market.status === 'success') {
-      renderCrypto(data.crypto_market)
-    }
-    if (data.us_stock_market.status === 'success') {
-      renderUsStock(data.us_stock_market)
-    }
-    lastUpdated.value = data.extracted_at_utc
-    apiError.value = ''
-  } catch (err: any) {
-    apiError.value = err?.message ?? '数据加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-
-// ── mount ─────────────────────────────────────────────────────────────────────
-onMounted(async () => {
-  await fetchData()
-  await nextTick()
-
-  // VIX remains static demo data
   const el = document.getElementById('gauge-vix') as HTMLDivElement
   if (el) {
+    charts[2]?.dispose()
     charts[2] = buildGauge(
       el,
       vix.value, 60,
@@ -392,12 +413,54 @@ onMounted(async () => {
         { offset: 0.50, color: '#166534' },
         { offset: 1, color: '#166534' },
       ],
-      '#16A34A',
+      vixSentimentColor(vix.value),
       true,
     )
   }
   buildProgressBar(document.getElementById('vix-rank') as HTMLDivElement, 'VIX Rank', vix.vixRank, '#f87171')
   buildProgressBar(document.getElementById('vix-pct') as HTMLDivElement, 'VIX Percentile', vix.vixPercentile, '#fb923c')
+
+  const sentimentEl = document.getElementById('vix-sentiment')
+  if (sentimentEl) {
+    sentimentEl.textContent = vixSentimentLabel(vix.value)
+    sentimentEl.className = `gauge-sentiment ${vixSentimentClass(vix.value)}`
+    sentimentEl.style.color = vixSentimentColor(vix.value)
+  }
+}
+
+// ── fetch data ───────────────────────────────────────────────────────────────
+async function fetchData() {
+  try {
+    const [sentimentData, vixData] = await Promise.all([
+      request.get('/api/v1/market/macro-sentiment-radar') as Promise<MacroSentimentRadarResponse>,
+      request.get('/api/v1/market/vix-risk-radar') as Promise<VixRiskRadarResponse>,
+    ])
+
+    if (sentimentData.status === 'success') {
+      if (sentimentData.crypto_market.status === 'success') {
+        renderCrypto(sentimentData.crypto_market)
+      }
+      if (sentimentData.us_stock_market.status === 'success') {
+        renderUsStock(sentimentData.us_stock_market)
+      }
+      lastUpdated.value = sentimentData.extracted_at_utc
+    }
+
+    if (vixData.status === 'success') {
+      renderVix(vixData.metrics)
+    }
+
+    apiError.value = ''
+  } catch (err: any) {
+    apiError.value = err?.message ?? '数据加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+// ── mount ─────────────────────────────────────────────────────────────────────
+onMounted(async () => {
+  await fetchData()
 })
 
 onUnmounted(() => {
@@ -450,7 +513,7 @@ onUnmounted(() => {
             <span class="gauge-card-badge warning">波动率</span>
           </div>
           <div id="gauge-vix" class="gauge-canvas" />
-          <div class="gauge-sentiment fear">市场恐慌 (Fear)</div>
+          <div id="vix-sentiment" class="gauge-sentiment" />
           <div class="gauge-metrics">
             <div id="vix-rank" class="metric-bar" />
             <div id="vix-pct" class="metric-bar" />
