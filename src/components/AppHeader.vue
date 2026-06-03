@@ -1,9 +1,25 @@
 <script setup lang="ts">
-import { onMounted, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, reactive, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import request from '../utils/request'
 
 const router = useRouter()
+const route = useRoute()
+
+const currentPath = computed(() => route.path)
+
+const navItems = [
+  { path: '/', label: '工作台' },
+  { path: '/explain', label: '数据说明' },
+  { path: '/calculator', label: '计算器' },
+  { path: '/iv-alert', label: '开仓IV预警' },
+  { path: '/position-risk', label: '持仓风控评估' },
+  { path: '/greed-fear', label: '贪婪恐慌' },
+]
+
+function isActive(path: string) {
+  return currentPath.value === path
+}
 
 const prices = reactive({
   BTC: 0,
@@ -53,15 +69,13 @@ function go(path: string) {
       <span class="title">Pre-trade Risk Workspace</span>
     </div>
     <div class="header-center">
-      <el-button type="primary" size="small" @click="go('/')">工作台</el-button>
-      <el-button type="primary" size="small" @click="go('/explain')">数据说明</el-button>
-      <el-button type="primary" size="small" @click="go('/calculator')">计算器</el-button>
-      <!-- 开仓iv预警 -->
-      <el-button type="primary" size="small" @click="go('/iv-alert')">开仓IV预警</el-button>
-      <!-- 持仓风控评估 -->
-      <el-button type="primary" size="small" @click="go('/position-risk')">持仓风控评估</el-button>
-      <!-- 贪婪恐慌 -->
-      <el-button type="primary" size="small" @click="go('/greed-fear')">贪婪恐慌</el-button>
+      <el-button
+        v-for="item in navItems"
+        :key="item.path"
+        :type="isActive(item.path) ? 'success' : 'primary'"
+        size="small"
+        @click="go(item.path)"
+      >{{ item.label }}</el-button>
     </div>
     <div class="header-right">
       <el-tag type="success" size="small">BTC IV%: {{ volRadar.BTC.iv_percentile_1y || '--' }}</el-tag>
