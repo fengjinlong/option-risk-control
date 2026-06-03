@@ -22,6 +22,8 @@ function go(path: string) {
       <el-button type="primary" size="small" @click="go('/calculator')">计算器</el-button>
       <!-- 开仓iv预警 -->
       <el-button type="primary" size="small" @click="go('/iv-alert')">开仓IV预警</el-button>
+      <!-- 持仓风控评估 -->
+      <el-button type="primary" size="small" @click="go('/position-risk')">持仓风控评估</el-button>
     </div>
     <div class="header-right">
       <el-tag type="success" size="small">BTC IV%: {{ volRadar.data?.BTC?.iv_percentile_1y ?? '--' }}</el-tag>

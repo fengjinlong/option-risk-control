@@ -1070,8 +1070,8 @@ watch([part1CurrentScore, part2Score, part3Score], () => {
 
 .report-body {
   padding: 16px 0 0;
-  max-height: 60vh;
-  overflow-y: auto;
+  /* max-height: 60vh; */
+  /* overflow-y: auto; */
 }
 
 /* Score Summary Row */
