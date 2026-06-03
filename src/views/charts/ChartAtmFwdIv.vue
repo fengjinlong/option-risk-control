@@ -22,32 +22,27 @@ function sortExpiries(arr: string[]) {
 function updateChart(data: AtmVolatilityV2Response['value']) {
   if (!chart.value || !data.length) return
 
-  // 按 timeMilli 升序排列（最老 -> 最新）
-  const sorted = [...data].sort((a, b) => a.timeMilli - b.timeMilli)
+  // 取最新快照
+  const nowData = [...data].sort((a, b) => b.timeMilli - a.timeMilli)[0]
 
-  // Now = sorted[sorted.length - 1]，T-1 = sorted[sorted.length - 2]（如果存在）
-  const nowData = sorted[sorted.length - 1]
-  const t1Data = sorted.length >= 2 ? sorted[sorted.length - 2] : null
+  const atmIv = nowData?.lineGraphList.find(l => l.name === 'ATM IV')
+  const fwdIv = nowData?.lineGraphList.find(l => l.name === 'FWD IV')
 
-  // 只取 ATM IV 曲线
-  const nowAtm = nowData?.lineGraphList.find(l => l.name === 'ATM IV')
-  const t1Atm = t1Data?.lineGraphList.find(l => l.name === 'ATM IV')
-
-  if (!nowAtm && !t1Atm) return
+  if (!atmIv && !fwdIv) return
 
   // 到期日升序
-  const allPoints = [...(nowAtm?.points ?? []), ...(t1Atm?.points ?? [])]
+  const allPoints = [...(atmIv?.points ?? []), ...(fwdIv?.points ?? [])]
   const xData = sortExpiries([...new Set(allPoints.map(p => p.x))])
 
   const colors = ['#ff4da2', '#73d13d']
   const series: echarts.SeriesOption[] = []
 
-  if (nowAtm) {
+  if (atmIv) {
     series.push({
-      name: 'Now',
+      name: 'ATM IV',
       type: 'line',
       data: xData.map(x => {
-        const pt = nowAtm.points.find(p => p.x === x)
+        const pt = atmIv.points.find(p => p.x === x)
         return pt != null ? parseFloat((parseFloat(pt.y) * 100).toFixed(2)) : null
       }),
       smooth: true,
@@ -57,12 +52,12 @@ function updateChart(data: AtmVolatilityV2Response['value']) {
     })
   }
 
-  if (t1Atm) {
+  if (fwdIv) {
     series.push({
-      name: 'T-1',
+      name: 'FWD IV',
       type: 'line',
       data: xData.map(x => {
-        const pt = t1Atm.points.find(p => p.x === x)
+        const pt = fwdIv.points.find(p => p.x === x)
         return pt != null ? parseFloat((parseFloat(pt.y) * 100).toFixed(2)) : null
       }),
       smooth: true,
@@ -74,7 +69,7 @@ function updateChart(data: AtmVolatilityV2Response['value']) {
 
   chart.value.setOption({
     title: {
-      text: 'ETH ATM IV 期限结构',
+      text: 'ETH ATM vs FWD IV',
       textStyle: { fontSize: 13, fontWeight: 700 },
     },
     tooltip: {

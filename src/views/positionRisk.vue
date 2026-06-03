@@ -10,6 +10,7 @@ import ChartRvMomentum from './charts/ChartRvMomentum.vue'
 import ChartTimeLapseIv from './charts/ChartTimeLapseIv.vue'
 import ChartTimeLapseIvFly from './charts/ChartTimeLapseIvFly.vue'
 import ChartAtmVolV2 from './charts/ChartAtmVolV2.vue'
+import ChartAtmFwdIv from './charts/ChartAtmFwdIv.vue'
 </script>
 
 <template>
@@ -26,6 +27,7 @@ import ChartAtmVolV2 from './charts/ChartAtmVolV2.vue'
         <Chart25dRr />
         <Chart25dFly />
         <ChartAtmVolV2 />
+        <ChartAtmFwdIv />
         <!-- <ChartTermStructure /> -->
         <!-- 评分 -->
       </div>
