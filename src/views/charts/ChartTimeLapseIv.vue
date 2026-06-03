@@ -61,7 +61,8 @@ function updateChart(data: TimeLapseIvResponse['value']) {
       textStyle: { align: 'left' },
       formatter: (params: any[]) => {
         const expiry = params[0]?.axisValue
-        const rows = params
+        const sorted = [...params].sort((a, b) => (b.value ?? -Infinity) - (a.value ?? -Infinity))
+        const rows = sorted
           .map(p => `${p.marker} ${p.seriesName}: ${p.value != null ? p.value + '%' : '--'}`)
           .join('<br/>')
         return `${expiry}<br/>${rows}`

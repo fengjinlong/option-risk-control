@@ -22,7 +22,7 @@ function updateChart(res: IvRvTrendsResponse1) {
   if (!ivRvChart.value) return
 
   const curves = res.data
-  const seriesNames = ['30D ATM IV', '60D ATM IV', '30D RV', '60D RV']
+  const seriesNames = ['30D ATM IV', '30D RV', '60D ATM IV', '60D RV']
   const firstCurve = curves.find(c => c.name === seriesNames[0]) ?? curves[0]
   const xData = (firstCurve?.points ?? []).map(p => p.x)
 
