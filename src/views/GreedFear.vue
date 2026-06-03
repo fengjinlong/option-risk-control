@@ -65,7 +65,7 @@ function buildGauge(
           lineStyle: { color: splitLineColor, width: 2.5 },
         },
         axisLabel: {
-          color: '#94a3b8',
+          color: '#64748b',
           distance: 12,
           fontSize: 11,
           fontFamily: '"JetBrains Mono", "Helvetica Neue", monospace',
@@ -78,13 +78,13 @@ function buildGauge(
             val: {
               fontSize: 36,
               fontWeight: 700,
-              color: pointerColor,
+              color: '#1e293b',
               fontFamily: '"JetBrains Mono", "Helvetica Neue", monospace',
               padding: [0, 4, 0, 0],
             },
             unit: {
               fontSize: 14,
-              color: '#94a3b8',
+              color: '#64748b',
               fontFamily: '"JetBrains Mono", "Helvetica Neue", monospace',
               verticalAlign: 'bottom',
               padding: [0, 0, 4, 0],
@@ -120,10 +120,10 @@ function buildProgressBar(
 ): void {
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-      <span style="font-size:11px;color:#94a3b8;font-family:'JetBrains Mono','Helvetica Neue',monospace;">${label}</span>
+      <span style="font-size:11px;color:#64748b;font-family:'JetBrains Mono','Helvetica Neue',monospace;">${label}</span>
       <span style="font-size:12px;color:${color};font-weight:700;font-family:'JetBrains Mono','Helvetica Neue',monospace;">${value.toFixed(1)}%</span>
     </div>
-    <div style="height:4px;background:#1e293b;border-radius:2px;overflow:hidden;">
+    <div style="height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden;">
       <div style="width:${value}%;height:100%;background:${color};border-radius:2px;transition:width 1s ease;"></div>
     </div>`
 }
@@ -320,7 +320,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #020617;
+  background: #f1f5f9;
   overflow: hidden;
 }
 
@@ -336,7 +336,7 @@ onUnmounted(() => {
 .greed-fear-title {
   font-size: 15px;
   font-weight: 700;
-  color: #e2e8f0;
+  color: #1e293b;
   font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
   letter-spacing: 0.05em;
 }
@@ -355,11 +355,11 @@ onUnmounted(() => {
 
 /* ── Gauge Card ─────────────────────────────────────────────────────── */
 .gauge-card {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(51, 65, 85, 0.8);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(203, 213, 225, 0.9);
   border-radius: 20px;
   padding: 20px 16px 24px;
-  backdrop-filter: blur(12px);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -377,7 +377,7 @@ onUnmounted(() => {
 .gauge-card-label {
   font-size: 12px;
   font-weight: 600;
-  color: #cbd5e1;
+  color: #475569;
   font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
   letter-spacing: 0.04em;
 }
@@ -386,22 +386,22 @@ onUnmounted(() => {
   font-size: 10px;
   padding: 2px 8px;
   border-radius: 20px;
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.25);
   font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
 }
 
 .gauge-card-badge.greed {
-  background: rgba(34, 197, 94, 0.2);
-  color: #86efac;
-  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+  border-color: rgba(34, 197, 94, 0.25);
 }
 
 .gauge-card-badge.warning {
-  background: rgba(245, 158, 11, 0.2);
-  color: #fcd34d;
-  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+  border-color: rgba(245, 158, 11, 0.25);
 }
 
 .gauge-canvas {
@@ -419,11 +419,11 @@ onUnmounted(() => {
 }
 
 .gauge-sentiment.fear {
-  color: #f97316;
+  color: #ea580c;
 }
 
 .gauge-sentiment.greed {
-  color: #84cc16;
+  color: #65a30d;
 }
 
 .gauge-metrics {
@@ -439,18 +439,18 @@ onUnmounted(() => {
 
 /* ── Summary Panel ──────────────────────────────────────────────────── */
 .summary-panel {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(51, 65, 85, 0.8);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(203, 213, 225, 0.9);
   border-left: 4px solid #f59e0b;
   border-radius: 20px;
   padding: 20px 24px;
-  backdrop-filter: blur(12px);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
 }
 
 .summary-title {
   font-size: 13px;
   font-weight: 700;
-  color: #fbbf24;
+  color: #92400e;
   font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
   letter-spacing: 0.05em;
   margin-bottom: 16px;
@@ -497,7 +497,7 @@ onUnmounted(() => {
 
 .summary-divider {
   width: 1px;
-  background: rgba(51, 65, 85, 0.6);
+  background: rgba(203, 213, 225, 0.8);
   flex-shrink: 0;
 }
 
@@ -509,7 +509,7 @@ onUnmounted(() => {
 
 .summary-col p {
   font-size: 13px;
-  color: #94a3b8;
+  color: #475569;
   line-height: 1.75;
   margin-bottom: 10px;
 }
@@ -519,12 +519,12 @@ onUnmounted(() => {
 }
 
 .summary-col strong {
-  color: #e2e8f0;
+  color: #1e293b;
   font-weight: 700;
 }
 
 .summary-col em {
-  color: #fbbf24;
+  color: #b45309;
   font-style: normal;
 }
 </style>
