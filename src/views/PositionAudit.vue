@@ -23,20 +23,20 @@ const oiWallAudit = ref<'in_wall' | 'outside'>('outside')
 
 // ---------- 得分计算 ----------
 const SCORES: Record<string, { seller: number; buyer: number }> = {
-  ivRvBelow:   { seller: -15, buyer: +5  },
-  ivRvNormal:  { seller:   0, buyer:  0  },
-  rvCrossUp:   { seller: -15, buyer: +15 },
+  ivRvBelow: { seller: -15, buyer: +5 },
+  ivRvNormal: { seller: 0, buyer: 0 },
+  rvCrossUp: { seller: -15, buyer: +15 },
   rvCrossDown: { seller: +15, buyer: -15 },
-  rvFlat:      { seller: +10, buyer:  -5 },
-  rvBottomUp:  { seller:  -5, buyer:  +5 },
-  atmInflate:  { seller: -10, buyer: +10 },
-  atmCollapse: { seller:   0, buyer:   0 },
-  rrHigh:      { seller: +10, buyer: -10 },
-  rrNormal:    { seller:   0, buyer:   0 },
-  flyHigh:     { seller: +10, buyer: -15 },
-  flyNormal:   { seller:   0, buyer:   0 },
-  oiInWall:    { seller:  -5, buyer:  -5 },
-  oiOutside:   { seller:   0, buyer:   0 },
+  rvFlat: { seller: +10, buyer: -5 },
+  rvBottomUp: { seller: -5, buyer: +5 },
+  atmInflate: { seller: -10, buyer: +10 },
+  atmCollapse: { seller: 0, buyer: 0 },
+  rrHigh: { seller: +10, buyer: -10 },
+  rrNormal: { seller: 0, buyer: 0 },
+  flyHigh: { seller: +10, buyer: -15 },
+  flyNormal: { seller: 0, buyer: 0 },
+  oiInWall: { seller: -5, buyer: -5 },
+  oiOutside: { seller: 0, buyer: 0 },
 }
 
 const rvMap = { cross_up: 'rvCrossUp', cross_down: 'rvCrossDown', flat: 'rvFlat', bottom_up: 'rvBottomUp' }
@@ -46,7 +46,7 @@ const sellerScore = computed(() => {
   s += SCORES[ivRvAudit.value === 'below' ? 'ivRvBelow' : 'ivRvNormal'].seller
   s += SCORES[rvMap[rvMomentumAudit.value]].seller
   s += SCORES[atmTermAudit.value === 'inflate' ? 'atmInflate' : 'atmCollapse'].seller
-  s += SCORES[rrAudit.value  === 'high' ? 'rrHigh'  : 'rrNormal'].seller
+  s += SCORES[rrAudit.value === 'high' ? 'rrHigh' : 'rrNormal'].seller
   s += SCORES[flyAudit.value === 'high' ? 'flyHigh' : 'flyNormal'].seller
   s += SCORES[oiWallAudit.value === 'in_wall' ? 'oiInWall' : 'oiOutside'].seller
   return s
@@ -57,20 +57,20 @@ const buyerScore = computed(() => {
   b += SCORES[ivRvAudit.value === 'below' ? 'ivRvBelow' : 'ivRvNormal'].buyer
   b += SCORES[rvMap[rvMomentumAudit.value]].buyer
   b += SCORES[atmTermAudit.value === 'inflate' ? 'atmInflate' : 'atmCollapse'].buyer
-  b += SCORES[rrAudit.value  === 'high' ? 'rrHigh'  : 'rrNormal'].buyer
+  b += SCORES[rrAudit.value === 'high' ? 'rrHigh' : 'rrNormal'].buyer
   b += SCORES[flyAudit.value === 'high' ? 'flyHigh' : 'flyNormal'].buyer
   b += SCORES[oiWallAudit.value === 'in_wall' ? 'oiInWall' : 'oiOutside'].buyer
   return b
 })
 
 function getDecision(score: number) {
-  if (score < -40)  return { level: 'danger',  label: '强行减仓', action: '强制减仓 50% 以上，无条件止损离场。' }
+  if (score < -40) return { level: 'danger', label: '强行减仓', action: '强制减仓 50% 以上，无条件止损离场。' }
   if (score <= -15) return { level: 'warning', label: '暂停新仓', action: '暂停开立任何新头寸，立即修正 Gamma/Delta 对冲，买入尾部保险。' }
-  return           { level: 'success', label: '平稳巡航', action: '禁止任何主观情绪化操作，坚定执行原有计划，静等 Theta 收租或 Gamma 兑现。' }
+  return { level: 'success', label: '平稳巡航', action: '禁止任何主观情绪化操作，坚定执行原有计划，静等 Theta 收租或 Gamma 兑现。' }
 }
 
 const sellerDecision = computed(() => getDecision(sellerScore.value))
-const buyerDecision  = computed(() => getDecision(buyerScore.value))
+const buyerDecision = computed(() => getDecision(buyerScore.value))
 
 // ---------- 双指针仪表盘 ----------
 const gaugeRef = ref<HTMLDivElement>()
@@ -91,7 +91,7 @@ function drawGauge() {
         axisLine: {
           lineStyle: {
             width: 12,
-            color: [[-40/60, '#f56c6c'], [(-15)/60, '#e6a23c'], [1, '#67c23a']],
+            color: [[-40 / 60, '#f56c6c'], [(-15) / 60, '#e6a23c'], [1, '#67c23a']],
           },
         },
         pointer: { length: '55%', width: 6, itemStyle: { color: '#409eff' } },
@@ -113,7 +113,7 @@ function drawGauge() {
         axisLine: {
           lineStyle: {
             width: 12,
-            color: [[-40/60, '#f56c6c'], [(-15)/60, '#e6a23c'], [1, '#67c23a']],
+            color: [[-40 / 60, '#f56c6c'], [(-15) / 60, '#e6a23c'], [1, '#67c23a']],
           },
         },
         pointer: { length: '55%', width: 6, itemStyle: { color: '#ff4da2' } },
@@ -144,10 +144,10 @@ const expertLines = computed(() => {
     lines.push('IV/RV 处于正常溢价区间，卖方 Vega 敞口处于健康正溢价状态。')
   }
   const rvExpert: Record<string, string> = {
-    cross_up:   'RV 动量上穿零轴，动能爆发确认。Gamma 敞口将进入非线性加速亏损区域，卖方需立即收紧 Delta 对冲频率。',
+    cross_up: 'RV 动量上穿零轴，动能爆发确认。Gamma 敞口将进入非线性加速亏损区域，卖方需立即收紧 Delta 对冲频率。',
     cross_down: 'RV 动量下穿零轴，波动率势能衰竭。卖方可坚定持仓等待 Theta 加速释放。',
-    flat:       'RV 动量持续走平，市场进入极度低波死寂状态。Theta 衰减效率最大化，卖方处于最佳稳态经营区间。',
-    bottom_up:  'RV 动量底部抬头，潜伏期结束信号出现。卖方应立即进入预警状态，严禁开立任何新卖单头寸。',
+    flat: 'RV 动量持续走平，市场进入极度低波死寂状态。Theta 衰减效率最大化，卖方处于最佳稳态经营区间。',
+    bottom_up: 'RV 动量底部抬头，潜伏期结束信号出现。卖方应立即进入预警状态，严禁开立任何新卖单头寸。',
   }
   lines.push(rvExpert[rvMomentumAudit.value])
   if (atmTermAudit.value === 'inflate') {
@@ -175,10 +175,10 @@ const plainLines = computed(() => {
     lines.push('IV 和 RV 关系正常，卖方持仓的保费溢价合理，没有异常亏损风险。')
   }
   const rvPlain: Record<string, string> = {
-    cross_up:   '波动率开始暴涨！买方的 gamma 要开始发力了，卖方账户会加速亏损。建议立刻减仓或做 Delta 对冲。',
+    cross_up: '波动率开始暴涨！买方的 gamma 要开始发力了，卖方账户会加速亏损。建议立刻减仓或做 Delta 对冲。',
     cross_down: '波动率开始消停了，卖方可以安心收租 theta，买方这时候要小心别被耗死。',
-    flat:       '市场平静得像死水一样，波动率一动不动。卖方这时候最舒服，躺赚 theta 保费。',
-    bottom_up:  '波动率可能要动了！卖方要警惕，这时候千万别新开卖单，容易被 gamma 打脸。',
+    flat: '市场平静得像死水一样，波动率一动不动。卖方这时候最舒服，躺赚 theta 保费。',
+    bottom_up: '波动率可能要动了！卖方要警惕，这时候千万别新开卖单，容易被 gamma 打脸。',
   }
   lines.push(rvPlain[rvMomentumAudit.value])
   if (atmTermAudit.value === 'inflate') {
@@ -249,11 +249,7 @@ onUnmounted(() => {
             <div class="card-header">1. 行权日 IV vs RV 审计</div>
           </template>
           <div class="radio-cards">
-            <div
-              class="radio-card"
-              :class="{ active: ivRvAudit === 'below' }"
-              @click="ivRvAudit = 'below'"
-            >
+            <div class="radio-card" :class="{ active: ivRvAudit === 'below' }" @click="ivRvAudit = 'below'">
               <div class="card-title">IV 跌破 RV</div>
               <div class="card-sub">隐含波动率低于实际波动率，卖方处于贴水流血状态</div>
               <div class="card-scores">
@@ -261,11 +257,7 @@ onUnmounted(() => {
                 <span class="score-tag buyer">买方 +5</span>
               </div>
             </div>
-            <div
-              class="radio-card"
-              :class="{ active: ivRvAudit === 'normal' }"
-              @click="ivRvAudit = 'normal'"
-            >
+            <div class="radio-card" :class="{ active: ivRvAudit === 'normal' }" @click="ivRvAudit = 'normal'">
               <div class="card-title">IV 正常维持</div>
               <div class="card-sub">IV 维持在 RV 之上，溢价正常</div>
               <div class="card-scores">
@@ -281,11 +273,8 @@ onUnmounted(() => {
             <div class="card-header">2. 7天 RV 势态审计</div>
           </template>
           <div class="radio-cards">
-            <div
-              class="radio-card"
-              :class="{ active: rvMomentumAudit === 'cross_up' }"
-              @click="rvMomentumAudit = 'cross_up'"
-            >
+            <div class="radio-card" :class="{ active: rvMomentumAudit === 'cross_up' }"
+              @click="rvMomentumAudit = 'cross_up'">
               <div class="card-title">黄线上穿零轴</div>
               <div class="card-sub">波动率动量向上突破</div>
               <div class="card-advice">动作：卖方减仓对冲；买方顺势上车</div>
@@ -294,11 +283,8 @@ onUnmounted(() => {
                 <span class="score-tag buyer">买方 +15</span>
               </div>
             </div>
-            <div
-              class="radio-card"
-              :class="{ active: rvMomentumAudit === 'cross_down' }"
-              @click="rvMomentumAudit = 'cross_down'"
-            >
+            <div class="radio-card" :class="{ active: rvMomentumAudit === 'cross_down' }"
+              @click="rvMomentumAudit = 'cross_down'">
               <div class="card-title">向下转零轴</div>
               <div class="card-sub">波动率动量衰竭</div>
               <div class="card-advice">动作：卖方坚定持仓收租；买方多头撤退</div>
@@ -307,11 +293,7 @@ onUnmounted(() => {
                 <span class="score-tag buyer">买方 -15</span>
               </div>
             </div>
-            <div
-              class="radio-card"
-              :class="{ active: rvMomentumAudit === 'flat' }"
-              @click="rvMomentumAudit = 'flat'"
-            >
+            <div class="radio-card" :class="{ active: rvMomentumAudit === 'flat' }" @click="rvMomentumAudit = 'flat'">
               <div class="card-title">零轴下持续走平</div>
               <div class="card-sub">极度死寂行情</div>
               <div class="card-advice">动作：稳态经营，静待 Theta 释放</div>
@@ -320,11 +302,8 @@ onUnmounted(() => {
                 <span class="score-tag buyer">买方 -5</span>
               </div>
             </div>
-            <div
-              class="radio-card"
-              :class="{ active: rvMomentumAudit === 'bottom_up' }"
-              @click="rvMomentumAudit = 'bottom_up'"
-            >
+            <div class="radio-card" :class="{ active: rvMomentumAudit === 'bottom_up' }"
+              @click="rvMomentumAudit = 'bottom_up'">
               <div class="card-title">零轴下抬头向上</div>
               <div class="card-sub">潜伏期结束</div>
               <div class="card-advice">动作：进入预警状态，严禁新加卖单</div>
@@ -342,11 +321,7 @@ onUnmounted(() => {
             <div class="card-header">3. ATM 波动率期限结构审计（Now vs T-1）</div>
           </template>
           <div class="radio-cards">
-            <div
-              class="radio-card"
-              :class="{ active: atmTermAudit === 'inflate' }"
-              @click="atmTermAudit = 'inflate'"
-            >
+            <div class="radio-card" :class="{ active: atmTermAudit === 'inflate' }" @click="atmTermAudit = 'inflate'">
               <div class="card-title">Now 整体上移</div>
               <div class="card-sub">全线近远期 ATM IV 膨胀</div>
               <div class="card-advice">核心：IV 剧烈膨胀，产生全线 Vega 浮亏</div>
@@ -355,11 +330,7 @@ onUnmounted(() => {
                 <span class="score-tag buyer">买方 +10</span>
               </div>
             </div>
-            <div
-              class="radio-card"
-              :class="{ active: atmTermAudit === 'collapse' }"
-              @click="atmTermAudit = 'collapse'"
-            >
+            <div class="radio-card" :class="{ active: atmTermAudit === 'collapse' }" @click="atmTermAudit = 'collapse'">
               <div class="card-title">Now 下移或走平</div>
               <div class="card-sub">IV 坍缩或交织</div>
               <div class="card-scores">
@@ -377,11 +348,7 @@ onUnmounted(() => {
           <div class="sub-section">
             <div class="sub-label">25D RR（风险反转偏斜）</div>
             <div class="radio-cards compact">
-              <div
-                class="radio-card"
-                :class="{ active: rrAudit === 'high' }"
-                @click="rrAudit = 'high'"
-              >
+              <div class="radio-card" :class="{ active: rrAudit === 'high' }" @click="rrAudit = 'high'">
                 <div class="card-title">触及历史 75% 分位</div>
                 <div class="card-sub">偏斜进入高位极值区</div>
                 <div class="card-advice">审计：均值回归概率大，适合反向套利</div>
@@ -390,11 +357,7 @@ onUnmounted(() => {
                   <span class="score-tag buyer">买方 -10</span>
                 </div>
               </div>
-              <div
-                class="radio-card"
-                :class="{ active: rrAudit === 'normal' }"
-                @click="rrAudit = 'normal'"
-              >
+              <div class="radio-card" :class="{ active: rrAudit === 'normal' }" @click="rrAudit = 'normal'">
                 <div class="card-title">正常区间</div>
                 <div class="card-scores">
                   <span class="score-tag neutral">双方 0</span>
@@ -406,11 +369,7 @@ onUnmounted(() => {
           <div class="sub-section">
             <div class="sub-label">25D FLY（蝶式尾部恐慌）</div>
             <div class="radio-cards compact">
-              <div
-                class="radio-card"
-                :class="{ active: flyAudit === 'high' }"
-                @click="flyAudit = 'high'"
-              >
+              <div class="radio-card" :class="{ active: flyAudit === 'high' }" @click="flyAudit = 'high'">
                 <div class="card-title">触及历史 95% 分位</div>
                 <div class="card-sub">市场对极端尾部风险极度恐慌</div>
                 <div class="card-advice">审计：肥尾溢价过高，卖方适合收割高保费</div>
@@ -419,11 +378,7 @@ onUnmounted(() => {
                   <span class="score-tag buyer">买方 -15</span>
                 </div>
               </div>
-              <div
-                class="radio-card"
-                :class="{ active: flyAudit === 'normal' }"
-                @click="flyAudit = 'normal'"
-              >
+              <div class="radio-card" :class="{ active: flyAudit === 'normal' }" @click="flyAudit = 'normal'">
                 <div class="card-title">正常区间</div>
                 <div class="card-scores">
                   <span class="score-tag neutral">双方 0</span>
@@ -439,11 +394,7 @@ onUnmounted(() => {
             <div class="card-header">5. 成交量与行权价分布审计（最近3天盘口）</div>
           </template>
           <div class="radio-cards">
-            <div
-              class="radio-card"
-              :class="{ active: oiWallAudit === 'in_wall' }"
-              @click="oiWallAudit = 'in_wall'"
-            >
+            <div class="radio-card" :class="{ active: oiWallAudit === 'in_wall' }" @click="oiWallAudit = 'in_wall'">
               <div class="card-title">标的价格进入大 OI 持仓墙</div>
               <div class="card-sub">产生强阻力/支撑，行情极易剧烈洗盘</div>
               <div class="card-advice">核心：进入主力和做市商防守阵地，对买卖双方主观方向头寸均产生高摩擦</div>
@@ -452,11 +403,7 @@ onUnmounted(() => {
                 <span class="score-tag buyer">买方 -5</span>
               </div>
             </div>
-            <div
-              class="radio-card"
-              :class="{ active: oiWallAudit === 'outside' }"
-              @click="oiWallAudit = 'outside'"
-            >
+            <div class="radio-card" :class="{ active: oiWallAudit === 'outside' }" @click="oiWallAudit = 'outside'">
               <div class="card-title">未进入大 OI 筹码密集区</div>
               <div class="card-scores">
                 <span class="score-tag neutral">双方 0</span>
@@ -507,21 +454,16 @@ onUnmounted(() => {
                   </span>
                 </div>
               </template>
-              <el-alert
-                :title="sellerDecision.label"
-                :type="sellerDecision.level as any"
-                :description="sellerDecision.action"
-                :closable="false"
-                style="margin-bottom:12px"
-              />
+              <el-alert :title="sellerDecision.label" :type="sellerDecision.level as any"
+                :description="sellerDecision.action" :closable="false" style="margin-bottom:12px" />
               <div class="report-section">
                 <div class="report-section-title">【专业视点】</div>
-                <div v-for="(line, i) in expertLines" :key="'se'+i" class="report-line">{{ line }}</div>
+                <div v-for="(line, i) in expertLines" :key="'se' + i" class="report-line">{{ line }}</div>
               </div>
               <el-divider style="margin:10px 0" />
               <div class="report-section">
                 <div class="report-section-title">【换成白话】</div>
-                <div v-for="(line, i) in plainLines" :key="'sp'+i" class="report-line plain">{{ line }}</div>
+                <div v-for="(line, i) in plainLines" :key="'sp' + i" class="report-line plain">{{ line }}</div>
               </div>
             </el-card>
 
@@ -535,21 +477,16 @@ onUnmounted(() => {
                   </span>
                 </div>
               </template>
-              <el-alert
-                :title="buyerDecision.label"
-                :type="buyerDecision.level as any"
-                :description="buyerDecision.action"
-                :closable="false"
-                style="margin-bottom:12px"
-              />
+              <el-alert :title="buyerDecision.label" :type="buyerDecision.level as any"
+                :description="buyerDecision.action" :closable="false" style="margin-bottom:12px" />
               <div class="report-section">
                 <div class="report-section-title">【专业视点】</div>
-                <div v-for="(line, i) in expertLines" :key="'be'+i" class="report-line">{{ line }}</div>
+                <div v-for="(line, i) in expertLines" :key="'be' + i" class="report-line">{{ line }}</div>
               </div>
               <el-divider style="margin:10px 0" />
               <div class="report-section">
                 <div class="report-section-title">【换成白话】</div>
-                <div v-for="(line, i) in plainLines" :key="'bp'+i" class="report-line plain">{{ line }}</div>
+                <div v-for="(line, i) in plainLines" :key="'bp' + i" class="report-line plain">{{ line }}</div>
               </div>
             </el-card>
           </div>
@@ -561,7 +498,7 @@ onUnmounted(() => {
 
 <style scoped>
 .audit-workspace {
-  padding: 16px;
+  padding: 12px;
   background: #f5f7fa;
   min-height: calc(100vh - 56px);
 }
@@ -571,11 +508,11 @@ onUnmounted(() => {
   background: #fff;
   border: 1px solid #e4e7ed;
   border-radius: 6px;
-  padding: 12px 24px;
+  padding: 8px 20px;
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .side-score {
@@ -597,8 +534,16 @@ onUnmounted(() => {
   padding: 2px 10px;
   border-radius: 10px;
 }
-.seller-tag { background: #ecf5ff; color: #409eff; }
-.buyer-tag  { background: #fff0f7; color: #ff4da2; }
+
+.seller-tag {
+  background: #ecf5ff;
+  color: #409eff;
+}
+
+.buyer-tag {
+  background: #fff0f7;
+  color: #ff4da2;
+}
 
 .score-display {
   display: flex;
@@ -606,9 +551,18 @@ onUnmounted(() => {
   align-items: center;
   min-width: 60px;
 }
-.score-display.level-danger  .score-value { color: #f56c6c; }
-.score-display.level-warning .score-value { color: #e6a23c; }
-.score-display.level-success .score-value { color: #67c23a; }
+
+.score-display.level-danger .score-value {
+  color: #f56c6c;
+}
+
+.score-display.level-warning .score-value {
+  color: #e6a23c;
+}
+
+.score-display.level-success .score-value {
+  color: #67c23a;
+}
 
 .score-value {
   font-size: 24px;
@@ -623,47 +577,63 @@ onUnmounted(() => {
   font-size: 12px;
   font-weight: 700;
 }
-.badge-danger  { background: #fef0f0; color: #f56c6c; }
-.badge-warning { background: #fdf6ec; color: #e6a23c; }
-.badge-success { background: #f0f9eb; color: #67c23a; }
+
+.badge-danger {
+  background: #fef0f0;
+  color: #f56c6c;
+}
+
+.badge-warning {
+  background: #fdf6ec;
+  color: #e6a23c;
+}
+
+.badge-success {
+  background: #f0f9eb;
+  color: #67c23a;
+}
 
 /* 卡片 */
 .audit-card {
   border: 1px solid #e4e7ed;
   border-radius: 6px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .card-header {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: #2c3e50;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  /* padding: 8px 12px; */
 }
 
 /* Radio Card */
 .radio-cards {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 6px;
 }
+
 .radio-cards.compact {
   grid-template-columns: 1fr 1fr;
 }
 
 .radio-card {
   border: 1.5px solid #e4e7ed;
-  border-radius: 6px;
-  padding: 10px 12px;
+  border-radius: 4px;
+  padding: 7px 10px;
   cursor: pointer;
   transition: all 0.2s;
   background: #fff;
 }
+
 .radio-card:hover {
   border-color: #c0d8ff;
 }
+
 .radio-card.active {
   border-color: #409eff;
   border-width: 2px;
@@ -671,42 +641,58 @@ onUnmounted(() => {
 }
 
 .card-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: #2c3e50;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
+
 .card-sub {
-  font-size: 11px;
+  font-size: 10px;
   color: #606266;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
+
 .card-advice {
   font-size: 10px;
   color: #e6a23c;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   font-style: italic;
 }
+
 .card-scores {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
 }
+
 .score-tag {
   font-size: 10px;
-  padding: 1px 6px;
+  padding: 1px 5px;
   border-radius: 10px;
   font-weight: 600;
 }
-.score-tag.seller  { background: #ecf5ff; color: #409eff; }
-.score-tag.buyer   { background: #fff0f7; color: #ff4da2; }
-.score-tag.neutral { background: #f4f4f5; color: #909399; }
+
+.score-tag.seller {
+  background: #ecf5ff;
+  color: #409eff;
+}
+
+.score-tag.buyer {
+  background: #fff0f7;
+  color: #ff4da2;
+}
+
+.score-tag.neutral {
+  background: #f4f4f5;
+  color: #909399;
+}
 
 /* 子分区 */
 .sub-label {
-  font-size: 11px;
+  font-size: 10px;
   color: #909399;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   font-weight: 600;
 }
 
@@ -715,6 +701,7 @@ onUnmounted(() => {
   width: 100%;
   height: 200px;
 }
+
 .gauge-legend {
   display: flex;
   gap: 16px;
@@ -723,11 +710,13 @@ onUnmounted(() => {
   color: #606266;
   margin-top: 8px;
 }
+
 .legend-item {
   display: flex;
   align-items: center;
   gap: 4px;
 }
+
 .dot {
   width: 8px;
   height: 8px;
@@ -746,9 +735,18 @@ onUnmounted(() => {
   font-size: 13px;
   font-weight: 800;
 }
-.report-score.score-danger  { color: #f56c6c; }
-.report-score.score-warning { color: #e6a23c; }
-.report-score.score-success { color: #67c23a; }
+
+.report-score.score-danger {
+  color: #f56c6c;
+}
+
+.report-score.score-warning {
+  color: #e6a23c;
+}
+
+.report-score.score-success {
+  color: #67c23a;
+}
 
 .report-section-title {
   font-size: 12px;
@@ -756,12 +754,14 @@ onUnmounted(() => {
   color: #409eff;
   margin-bottom: 6px;
 }
+
 .report-line {
   font-size: 11px;
   color: #2c3e50;
   line-height: 1.6;
   margin-bottom: 5px;
 }
+
 .report-line.plain {
   color: #606266;
 }
@@ -777,6 +777,7 @@ onUnmounted(() => {
 .fade-slide-leave-active {
   transition: all 0.4s ease;
 }
+
 .fade-slide-enter-from,
 .fade-slide-leave-to {
   opacity: 0;
