@@ -11,17 +11,14 @@ const loading = ref(false)
 function updateChart(data: TimeLapseIvResponse['value']) {
   if (!chart.value) return
 
-  // 按时间戳升序排列（最老 -> 最新）
   const sorted = [...data].sort((a, b) => Number(a.name) - Number(b.name))
 
-  // 确定 Now / T-1 / T-7 标签（sorted[0] 最老，sorted[2] 最新）
   const LABEL_MAP: Record<number, string> = {
     0: 'T-7',
     1: 'T-1',
     2: 'Now',
   }
 
-  // 到期日升序排序（parseExpiry 辅助）
   function parseExpiry(s: string) {
     const months: Record<string, number> = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 }
     const match = s.match(/^(\d+)([A-Z]{3})(\d+)$/)
@@ -33,7 +30,6 @@ function updateChart(data: TimeLapseIvResponse['value']) {
     return [...arr].sort((a, b) => parseExpiry(a).getTime() - parseExpiry(b).getTime())
   }
 
-  // x 轴：到期日升序排列
   const xData = sortExpiries((sorted[0]?.points ?? []).map(p => p.x))
 
   const colors = ['#b6d634', '#73d13d', '#ff4da2']
@@ -53,7 +49,7 @@ function updateChart(data: TimeLapseIvResponse['value']) {
 
   chart.value.setOption({
     title: {
-      text: 'ETH 25D RR 延迟IV-固定到期日',
+      text: 'ETH 25D FLY 延迟IV-固定到期日',
       textStyle: { fontSize: 13, fontWeight: 700 },
     },
     tooltip: {
@@ -92,7 +88,7 @@ async function fetchData() {
   loading.value = true
   try {
     const res = await request.get('/api/v1/market/time-lapse-iv', {
-      params: { type: '25d-rr' },
+      params: { type: '25d-fly' },
     }) as { succ: boolean; value: TimeLapseIvResponse['value'] }
     if (res.succ && res.value) {
       updateChart(res.value)
