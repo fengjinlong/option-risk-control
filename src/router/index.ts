@@ -5,6 +5,7 @@ import Calculator from '../views/Calculator.vue'
 import IVAlert from '../views/IVAlert.vue'
 import PositionRisk from '../views/positionRisk.vue'
 import PositionAudit from '../views/PositionAudit.vue'
+import GreedFear from '../views/GreedFear.vue'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -41,6 +42,11 @@ const router = createRouter({
       path: '/position-audit',
       name: 'position-audit',
       component: PositionAudit,
+    },
+    {
+      path: '/greed-fear',
+      name: 'greed-fear',
+      component: GreedFear,
     },
   ],
 })
