@@ -8,108 +8,200 @@ import { TooltipComponent } from 'echarts/components'
 
 echarts.use([GaugeChart, CanvasRenderer, TooltipComponent])
 
-// ── Gauge builder ──────────────────────────────────────────────────────────────
+// ── Two-layer gauge builder (dark bg arc + colored progress arc) ─────────────
 function buildGauge(
   el: HTMLDivElement,
   value: number,
   max: number,
+  // gradient stops for the colored arc only (full 0→1 range = 0→max)
   colorStops: { offset: number; color: string }[],
-  center: [string, string],
-  radius: string,
   pointerColor: string,
-  splitLineColor: string,
-  tickLineColor: string,
-  axisLineColor: string,
-        formatFn?: (v: number) => string,
-): void {
+  // optional VIX-style reversed color mapping (low=green, high=red)
+  reversed?: boolean,
+): echarts.ECharts {
   const instance = echarts.init(el, undefined, { renderer: 'canvas' })
+
+  // clamp value so it never exactly equals max (avoids render glitch)
+  const safeValue = Math.min(value, max * 0.9999)
+  const progressRatio = safeValue / max
+
+  // reversed: invert the color stops so low value = green end, high = red end
+  const stops = reversed
+    ? colorStops.map((s) => ({ offset: 1 - s.offset, color: s.color }))
+    : colorStops
+
   const option = {
     animation: true,
-    animationDuration: 1200,
-  animationEasing: 'cubicOut' as const,
+    animationDuration: 1400,
+    animationEasing: 'cubicOut' as const,
     series: [
+      // Layer 1 – dark background arc (full 240° sweep, never changes)
       {
         type: 'gauge',
-        center,
-        radius,
+        center: ['50%', '60%'],
+        radius: '92%',
         startAngle: 210,
         endAngle: -30,
         min: 0,
-        max,
+        max: 100,
         splitNumber: 5,
         axisLine: {
           lineStyle: {
-            width: 12,
-            colorStops,
+            width: 16,
+            color: [[1, '#bfdbfe']],
+            roundCap: true,
           },
         },
+        axisTick: { show: false },
+        splitLine: { show: false },
+        axisLabel: { show: false },
+        pointer: { show: false },
+        detail: { show: false },
+        title: { show: false },
+        data: [{ value: 0 }],
+      },
+      // Layer 2 – colored progress arc (startAngle fixed, endAngle animated by value)
+      {
+        type: 'gauge',
+        center: ['50%', '60%'],
+        radius: '92%',
+        startAngle: 210,
+        endAngle: -30,
+        min: 0,
+        max: 100,
+        splitNumber: 5,
+        axisLine: {
+          lineStyle: {
+            width: 16,
+            color: [[1, 'transparent']], // background transparent; progress drawn below
+            roundCap: true,
+          },
+        },
+        // Progress arc via axisTick-like technique (show a single thick tick as progress marker)
+        progress: {
+          show: true,
+          width: 16,
+          roundCap: true,
+          itemStyle: { color: stops[stops.length - 1].color },
+        },
+        // Tick marks
+        axisTick: {
+          distance: -22,
+          length: 8,
+          lineStyle: { color: '#93c5fd', width: 1.5 },
+        },
+        // Major split lines
+        splitLine: {
+          distance: -26,
+          length: 14,
+          lineStyle: { color: '#60a5fa', width: 2.5 },
+        },
+        axisLabel: {
+          color: '#60a5fa',
+          distance: 14,
+          fontSize: 11,
+          fontFamily: '"JetBrains Mono", "Helvetica Neue", monospace',
+          formatter: (v: number) => (v % 25 === 0 ? String(Math.round(v)) : ''),
+        },
+        // Needle
         pointer: {
           icon: 'path://M12.8,0.7l12,40.1H0.7L12.8,0.7z',
-          length: '62%',
-          width: 8,
-          offsetCenter: [0, '-10%'],
+          length: '65%',
+          width: 6,
+          offsetCenter: [0, '-8%'],
           itemStyle: {
             color: pointerColor,
             shadowColor: pointerColor,
-            shadowBlur: 12,
+            shadowBlur: 16,
           },
         },
-        axisTick: {
-          distance: -18,
-          length: 6,
-          lineStyle: { color: tickLineColor, width: 1.5 },
-        },
-        splitLine: {
-          distance: -22,
-          length: 14,
-          lineStyle: { color: splitLineColor, width: 2.5 },
-        },
-        axisLabel: {
-          color: '#64748b',
-          distance: 12,
-          fontSize: 11,
-          fontFamily: '"JetBrains Mono", "Helvetica Neue", monospace',
-          formatter: formatFn ?? ((v: number) => (v % 20 === 0 ? String(Math.round(v)) : '')),
-        },
+        // Center detail
         detail: {
           valueAnimation: true,
           formatter: (v: number) => `{val|${v.toFixed(1)}}{unit|}`,
           rich: {
             val: {
-              fontSize: 36,
-              fontWeight: 700,
-              color: '#1e293b',
+              fontSize: 38,
+              fontWeight: 800,
+              color: pointerColor,
               fontFamily: '"JetBrains Mono", "Helvetica Neue", monospace',
-              padding: [0, 4, 0, 0],
+              padding: [0, 6, 0, 0],
             },
             unit: {
               fontSize: 14,
-              color: '#64748b',
+              color: '#60a5fa',
               fontFamily: '"JetBrains Mono", "Helvetica Neue", monospace',
               verticalAlign: 'bottom',
-              padding: [0, 0, 4, 0],
+              padding: [0, 0, 6, 0],
             },
           },
-          offsetCenter: [0, '38%'],
+          offsetCenter: [0, '42%'],
         },
         title: {
           show: true,
-          offsetCenter: [0, '72%'],
-          color: '#64748b',
+          offsetCenter: [0, '75%'],
+          color: '#3b82f6',
           fontSize: 11,
           fontFamily: '"JetBrains Mono", "Helvetica Neue", monospace',
         },
-        data: [{ value, name: '' }],
+        data: [{ value: safeValue, name: '' }],
+      },
+      // Layer 3 – pure color fill arc (0 → current value) using a custom overlay
+      {
+        type: 'gauge',
+        center: ['50%', '60%'],
+        radius: '92%',
+        startAngle: 210,
+        endAngle: -30,
+        min: 0,
+        max: 100,
+        axisLine: {
+          lineStyle: {
+            width: 16,
+            color: [[progressRatio, 'transparent']],
+            roundCap: true,
+          },
+        },
+        axisTick: { show: false },
+        splitLine: { show: false },
+        axisLabel: { show: false },
+        pointer: { show: false },
+        detail: { show: false },
+        title: { show: false },
+        data: [{ value: 0 }],
+      },
+      // Layer 4 – colored arc overlay that fills from 0 to value
+      {
+        type: 'gauge',
+        center: ['50%', '60%'],
+        radius: '92%',
+        startAngle: 210,
+        endAngle: 210 - 240 * progressRatio, // sweep proportional to value
+        min: 0,
+        max: 100,
+        axisLine: {
+          lineStyle: {
+            width: 16,
+            color: stops,
+            roundCap: true,
+          },
+        },
+        axisTick: { show: false },
+        splitLine: { show: false },
+        axisLabel: { show: false },
+        pointer: { show: false },
+        detail: { show: false },
+        title: { show: false },
+        data: [{ value: 0 }],
       },
     ],
   }
   instance.setOption(option)
+  return instance
 }
 
 // ── chart refs ───────────────────────────────────────────────────────────────
-let cryptoChart: echarts.ECharts | null = null
-let usStockChart: echarts.ECharts | null = null
-let vixChart: echarts.ECharts | null = null
+let charts: any[] = []
 
 // ── progress bar builder ─────────────────────────────────────────────────────
 function buildProgressBar(
@@ -120,11 +212,11 @@ function buildProgressBar(
 ): void {
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-      <span style="font-size:11px;color:#64748b;font-family:'JetBrains Mono','Helvetica Neue',monospace;">${label}</span>
-      <span style="font-size:12px;color:${color};font-weight:700;font-family:'JetBrains Mono','Helvetica Neue',monospace;">${value.toFixed(1)}%</span>
+      <span style="font-size:11px;color:#6b7280;font-family:'JetBrains Mono','Helvetica Neue',monospace;">${label}</span>
+      <span style="font-size:13px;color:${color};font-weight:800;font-family:'JetBrains Mono','Helvetica Neue',monospace;">${value.toFixed(1)}%</span>
     </div>
-    <div style="height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden;">
-      <div style="width:${value}%;height:100%;background:${color};border-radius:2px;transition:width 1s ease;"></div>
+    <div style="height:4px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
+      <div style="width:${value}%;height:100%;background:${color};border-radius:3px;transition:width 1.2s cubic-bezier(0.4,0,0.2,1);"></div>
     </div>`
 }
 
@@ -135,68 +227,69 @@ const vix = reactive({ value: 22.5, vixRank: 78.9, vixPercentile: 82.1 })
 
 // ── mount ─────────────────────────────────────────────────────────────────────
 onMounted(() => {
-  // Crypto Fear & Greed
-  buildGauge(
-    document.getElementById('gauge-crypto') as HTMLDivElement,
-    crypto.value, 100,
-    [
-      { offset: 0, color: '#EF4444' },
-      { offset: 0.2, color: '#EF4444' },
-      { offset: 0.4, color: '#F97316' },
-      { offset: 0.6, color: '#EAB308' },
-      { offset: 0.75, color: '#84CC16' },
-      { offset: 1, color: '#22C55E' },
-    ],
-    ['50%', '55%'], '88%',
-    '#F97316', '#334155', '#475569', '#1e293b',
+  // Crypto Fear & Greed (value=32 → orange/fear)
+  charts.push(
+    buildGauge(
+      document.getElementById('gauge-crypto') as HTMLDivElement,
+      crypto.value, 100,
+      [
+        { offset: 0, color: '#EF4444' },
+        { offset: 0.35, color: '#F97316' },
+        { offset: 0.55, color: '#EAB308' },
+        { offset: 0.75, color: '#22C55E' },
+        { offset: 1, color: '#22C55E' },
+      ],
+      '#F97316', // pointer orange
+    ),
   )
   buildProgressBar(
     document.getElementById('crypto-rank') as HTMLDivElement,
-    'IV Rank', crypto.ivRank, '#60a5fa',
+    'IV Rank', crypto.ivRank, '#818cf8',
   )
   buildProgressBar(
     document.getElementById('crypto-pct') as HTMLDivElement,
-    'IV Percentile', crypto.ivPercentile, '#818cf8',
+    'IV Percentile', crypto.ivPercentile, '#f87171',
   )
 
-  // US Stock Fear & Greed
-  buildGauge(
-    document.getElementById('gauge-usstock') as HTMLDivElement,
-    usStock.value, 100,
-    [
-      { offset: 0, color: '#EF4444' },
-      { offset: 0.24, color: '#EF4444' },
-      { offset: 0.44, color: '#F97316' },
-      { offset: 0.55, color: '#EAB308' },
-      { offset: 0.75, color: '#84CC16' },
-      { offset: 1, color: '#22C55E' },
-    ],
-    ['50%', '55%'], '88%',
-    '#84CC16', '#334155', '#475569', '#1e293b',
+  // US Stock Fear & Greed (value=68 → green/greed)
+  charts.push(
+    buildGauge(
+      document.getElementById('gauge-usstock') as HTMLDivElement,
+      usStock.value, 100,
+      [
+        { offset: 0, color: '#EF4444' },
+        { offset: 0.35, color: '#F97316' },
+        { offset: 0.55, color: '#EAB308' },
+        { offset: 0.75, color: '#84CC16' },
+        { offset: 1, color: '#22C55E' },
+      ],
+      '#22C55E', // pointer green
+    ),
   )
   buildProgressBar(
     document.getElementById('usstock-rank') as HTMLDivElement,
-    'IV Rank', usStock.ivRank, '#60a5fa',
+    'IV Rank', usStock.ivRank, '#818cf8',
   )
   buildProgressBar(
     document.getElementById('usstock-pct') as HTMLDivElement,
-    'IV Percentile', usStock.ivPercentile, '#818cf8',
+    'IV Percentile', usStock.ivPercentile, '#22c55e',
   )
 
-  // VIX
-  buildGauge(
-    document.getElementById('gauge-vix') as HTMLDivElement,
-    vix.value, 60,
-    [
-      { offset: 0, color: '#22C55E' },
-      { offset: 0.2, color: '#22C55E' },
-      { offset: 0.25, color: '#84CC16' },
-      { offset: 0.333, color: '#EAB308' },
-      { offset: 0.5, color: '#F97316' },
-      { offset: 1, color: '#EF4444' },
-    ],
-    ['50%', '55%'], '88%',
-    '#F97316', '#334155', '#475569', '#1e293b',
+  // VIX (value=22.5 → reversed: high=red, low=green)
+  charts.push(
+    buildGauge(
+      document.getElementById('gauge-vix') as HTMLDivElement,
+      vix.value, 60,
+      [
+        { offset: 0, color: '#22C55E' },
+        { offset: 0.25, color: '#84CC16' },
+        { offset: 0.4, color: '#EAB308' },
+        { offset: 0.6, color: '#F97316' },
+        { offset: 1, color: '#EF4444' },
+      ],
+      '#F97316', // pointer orange
+      true, // reversed
+    ),
   )
   buildProgressBar(
     document.getElementById('vix-rank') as HTMLDivElement,
@@ -209,9 +302,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  cryptoChart?.dispose()
-  usStockChart?.dispose()
-  vixChart?.dispose()
+  charts.forEach((c) => c?.dispose())
+  charts = []
 })
 </script>
 
@@ -355,11 +447,11 @@ onUnmounted(() => {
 
 /* ── Gauge Card ─────────────────────────────────────────────────────── */
 .gauge-card {
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba(203, 213, 225, 0.9);
-  border-radius: 20px;
-  padding: 20px 16px 24px;
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(229, 231, 235, 0.8);
+  border-radius: 24px;
+  padding: 20px 16px 20px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.07);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -371,15 +463,16 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .gauge-card-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  color: #374151;
   font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .gauge-card-badge {
@@ -388,25 +481,26 @@ onUnmounted(() => {
   border-radius: 20px;
   background: rgba(239, 68, 68, 0.1);
   color: #dc2626;
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  border: 1px solid rgba(239, 68, 68, 0.2);
   font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
+  letter-spacing: 0.03em;
 }
 
 .gauge-card-badge.greed {
   background: rgba(34, 197, 94, 0.1);
   color: #16a34a;
-  border-color: rgba(34, 197, 94, 0.25);
+  border-color: rgba(34, 197, 94, 0.2);
 }
 
 .gauge-card-badge.warning {
   background: rgba(245, 158, 11, 0.1);
   color: #d97706;
-  border-color: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.2);
 }
 
 .gauge-canvas {
   width: 100%;
-  height: 220px;
+  height: 200px;
 }
 
 .gauge-sentiment {
@@ -414,8 +508,8 @@ onUnmounted(() => {
   font-weight: 700;
   font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
   letter-spacing: 0.06em;
-  margin-top: -8px;
-  margin-bottom: 14px;
+  margin-top: -4px;
+  margin-bottom: 12px;
 }
 
 .gauge-sentiment.fear {
@@ -423,11 +517,12 @@ onUnmounted(() => {
 }
 
 .gauge-sentiment.greed {
-  color: #65a30d;
+  color: #16a34a;
 }
 
 .gauge-metrics {
   width: 100%;
+  padding: 0 4px;
   display: flex;
   flex-direction: column;
   gap: 10px;
