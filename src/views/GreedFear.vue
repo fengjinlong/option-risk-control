@@ -878,7 +878,6 @@ onUnmounted(() => {
 
 .status-copy {
   margin-left: auto;
-  border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 11px;
   cursor: pointer;
