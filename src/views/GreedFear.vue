@@ -47,6 +47,20 @@ interface VixRiskRadarResponse {
   }
 }
 
+interface MarketAnalysisResponse {
+  summary: string
+  risk_tier: 'Low' | 'Medium' | 'High' | 'Extreme'
+  cross_market_divergence: {
+    professional_view: string
+    plain_language: string
+  }
+  margin_and_liquidation_test: {
+    professional_view: string
+    plain_language: string
+  }
+  execution_matrix: string
+}
+
 // ── Two-layer gauge builder (bg arc + colored progress arc) ──────────────────
 function gaugeColorAt(stops: { offset: number; color: string }[], ratio: number): string {
   for (let i = 0; i < stops.length; i++) {
@@ -311,6 +325,11 @@ const loading = ref(true)
 const apiError = ref('')
 const lastUpdated = ref('')
 
+// ── market analysis state ─────────────────────────────────────────────────────
+const marketAnalysis = ref<MarketAnalysisResponse | null>(null)
+const analysisLoading = ref(false)
+const analysisError = ref('')
+
 // ── update UI from data ───────────────────────────────────────────────────────
 function renderCrypto(data: MacroSentimentRadarResponse['crypto_market']) {
   crypto.value = data.current_value
@@ -458,6 +477,76 @@ async function fetchData() {
   }
 }
 
+// ── copy data to clipboard ──────────────────────────────────────────────────────
+async function copyData() {
+  const data = {
+    timestamp: new Date().toISOString(),
+    crypto: {
+      value: crypto.value,
+      ivRank: crypto.ivRank,
+      ivPercentile: crypto.ivPercentile,
+    },
+    usStock: {
+      value: usStock.value,
+      ivRank: usStock.ivRank,
+      ivPercentile: usStock.ivPercentile,
+    },
+    vix: {
+      value: vix.value,
+      vixRank: vix.vixRank,
+      vixPercentile: vix.vixPercentile,
+    },
+  }
+
+  try {
+    const text = JSON.stringify(data, null, 2)
+    await navigator.clipboard.writeText(text)
+    // 复制成功后发送分析请求
+    await fetchMarketAnalysis()
+    const { ElMessage } = await import('element-plus')
+    ElMessage.success('数据已复制并分析')
+  } catch {
+    const { ElMessage } = await import('element-plus')
+    ElMessage.error('操作失败，请重试')
+  }
+}
+
+// ── fetch market analysis ──────────────────────────────────────────────────────
+async function fetchMarketAnalysis() {
+  if (crypto.value === 0 && usStock.value === 0 && vix.value === 0) return
+
+  analysisLoading.value = true
+  analysisError.value = ''
+
+  try {
+    const data = {
+      timestamp: new Date().toISOString(),
+      crypto: {
+        value: crypto.value,
+        ivRank: crypto.ivRank,
+        ivPercentile: crypto.ivPercentile,
+      },
+      usStock: {
+        value: usStock.value,
+        ivRank: usStock.ivRank,
+        ivPercentile: usStock.ivPercentile,
+      },
+      vix: {
+        value: vix.value,
+        vixRank: vix.vixRank,
+        vixPercentile: vix.vixPercentile,
+      },
+    }
+
+    const res = await request.post('/api/v1/market/analyze', data) as MarketAnalysisResponse
+    marketAnalysis.value = res
+  } catch (err: any) {
+    analysisError.value = err?.message ?? '分析请求失败'
+  } finally {
+    analysisLoading.value = false
+  }
+}
+
 // ── mount ─────────────────────────────────────────────────────────────────────
 onMounted(async () => {
   await fetchData()
@@ -533,50 +622,79 @@ onUnmounted(() => {
           <span class="status-ok">✅ 数据已更新</span>
           <span class="status-time">· 最后刷新: {{ lastUpdated }}</span>
         </template>
+        <button class="status-copy" @click="copyData">📋 复制数据</button>
       </div>
 
       <!-- ── Comprehensive Market Summary ───────────────────────────── -->
-      <div class="summary-panel">
+      <div class="summary-panel" v-if="marketAnalysis">
         <div class="summary-title">
           <span class="summary-icon">⚡</span>
           Comprehensive Market Summary · 跨市场量化风控总结
+          <span :class="['risk-tier-badge', `risk-tier-${marketAnalysis.risk_tier.toLowerCase()}`]">
+            {{ marketAnalysis.risk_tier }}
+          </span>
         </div>
+
+        <!-- 一句话总结 -->
+        <div class="summary-main">
+          <div class="summary-main-label">🎯 风控总监冷酷一句话</div>
+          <p class="summary-main-text">{{ marketAnalysis.summary }}</p>
+        </div>
+
         <div class="summary-content">
+          <!-- 跨市场情绪背离剖析 -->
           <div class="summary-col">
             <div class="col-heading">
-              <span class="col-icon">📊</span>专业量化视点
+              <span class="col-icon">📊</span>跨市场情绪背离剖析
             </div>
-            <p>
-              当前美股现货情绪录得 <strong>68（贪婪区间）</strong>，而 VIX Percentile 却高达
-              <strong>82.1%</strong>，呈现典型的<em>结构性背离</em>。
-              这种"表面歌舞升平、机构暗中买保险"的格局，是机构实施
-              <strong>尾部风险对冲（Tail-Risk Hedging）</strong>
-              的经典信号——机构通过期权组合构建保险链，以较低成本锁定极端行情下的流动性缺口。
-            </p>
-            <p>
-              同时，加密市场已提前进入 <strong>32（恐慌区间）</strong>，IV Percentile 仅
-              <strong>38.1%</strong>，表明衍生品市场已充分定价去杠杆清算阶段，
-              波动率风险溢价（VRP）持续收窄。
-            </p>
+            <div class="analysis-block">
+              <div class="analysis-label professional">⚡ 专业视点</div>
+              <p v-html="marketAnalysis.cross_market_divergence.professional_view.replace(/\n/g, '<br>')" />
+            </div>
+            <div class="analysis-block">
+              <div class="analysis-label plain">⚡ 换成白话</div>
+              <p v-html="marketAnalysis.cross_market_divergence.plain_language.replace(/\n/g, '<br>')" />
+            </div>
           </div>
+
           <div class="summary-divider" />
+
+          <!-- 压力测试与保证金架构 -->
           <div class="summary-col">
             <div class="col-heading">
-              <span class="col-icon">🗣️</span>交易员风控白话
+              <span class="col-icon">🧪</span>压力测试与保证金架构
             </div>
-            <p>
-              翻译成人话就是：<strong>散户在冲锋，主力在找退路。</strong>
-              美股涨得欢，但聪明钱正在悄悄买入看跌期权（Put），
-              用期权卖方的话说就是——<em>Gamma Scalp 的空间在变大</em>，
-              但尾部对冲的成本（VIX Rank 78.9%）在告诉你：
-              <strong>这不是一个可以闭眼梭哈的市场。</strong>
-            </p>
-            <p>
-              <strong>⚠️ 期权卖方和高杠杆交易者注意：</strong>收紧保证金预留，
-              不要在高位追涨美股ETF或加密杠杆代币。
-              如果你还在裸卖虚值期权，请立即检查你的希腊字母敞口（Greeks Exposure）。
-            </p>
+            <div class="analysis-block">
+              <div class="analysis-label professional">⚡ 专业视点</div>
+              <p v-html="marketAnalysis.margin_and_liquidation_test.professional_view.replace(/\n/g, '<br>')" />
+            </div>
+            <div class="analysis-block">
+              <div class="analysis-label plain">⚡ 换成白话</div>
+              <p v-html="marketAnalysis.margin_and_liquidation_test.plain_language.replace(/\n/g, '<br>')" />
+            </div>
           </div>
+        </div>
+
+        <!-- 执行矩阵 -->
+        <div class="execution-matrix" v-if="marketAnalysis.execution_matrix">
+          <div class="col-heading">
+            <span class="col-icon">📋</span>落地执行矩阵建议
+          </div>
+          <div class="execution-matrix-content" v-html="marketAnalysis.execution_matrix" />
+        </div>
+      </div>
+
+      <!-- Loading state -->
+      <div class="summary-panel" v-else-if="analysisLoading">
+        <div class="analysis-loading">
+          <span class="analysis-loading-text">⏳ AI 分析中...</span>
+        </div>
+      </div>
+
+      <!-- Error state -->
+      <div class="summary-panel" v-else-if="analysisError">
+        <div class="analysis-error">
+          <span>⚠️ {{ analysisError }}</span>
         </div>
       </div>
     </div>
@@ -713,6 +831,24 @@ onUnmounted(() => {
   color: #9ca3af;
 }
 
+.status-copy {
+  margin-left: auto;
+  padding: 4px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.status-copy:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
 .gauge-metrics {
   width: 100%;
   padding: 0 4px;
@@ -814,5 +950,163 @@ onUnmounted(() => {
 .summary-col em {
   color: #b45309;
   font-style: normal;
+}
+
+/* ── Risk Tier Badge ─────────────────────────────────────────────────── */
+.risk-tier-badge {
+  margin-left: 12px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.risk-tier-low {
+  background: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.risk-tier-medium {
+  background: rgba(234, 179, 8, 0.15);
+  color: #ca8a04;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.risk-tier-high {
+  background: rgba(249, 115, 22, 0.15);
+  color: #ea580c;
+  border: 1px solid rgba(249, 115, 22, 0.3);
+}
+
+.risk-tier-extreme {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* ── Summary Main ─────────────────────────────────────────────────────── */
+.summary-main {
+  background: rgba(59, 130, 246, 0.06);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.summary-main-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #3b82f6;
+  font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.summary-main-text {
+  font-size: 14px;
+  color: #1e293b;
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* ── Analysis Block ────────────────────────────────────────────────────── */
+.analysis-block {
+  margin-bottom: 12px;
+}
+
+.analysis-block:last-child {
+  margin-bottom: 0;
+}
+
+.analysis-label {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.analysis-label.professional {
+  color: #7c3aed;
+}
+
+.analysis-label.plain {
+  color: #0891b2;
+}
+
+.analysis-block p {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.75;
+  margin: 0 0 8px;
+}
+
+.analysis-block p:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Execution Matrix ──────────────────────────────────────────────────── */
+.execution-matrix {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(203, 213, 225, 0.5);
+}
+
+.execution-matrix-content {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.7;
+  overflow-x: auto;
+}
+
+.execution-matrix-content :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
+}
+
+.execution-matrix-content :deep(th) {
+  background: rgba(59, 130, 246, 0.1);
+  color: #1e40af;
+  padding: 8px 12px;
+  text-align: left;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  font-weight: 700;
+}
+
+.execution-matrix-content :deep(td) {
+  padding: 8px 12px;
+  border: 1px solid rgba(203, 213, 225, 0.5);
+  color: #374151;
+}
+
+.execution-matrix-content :deep(tr:hover td) {
+  background: rgba(59, 130, 246, 0.03);
+}
+
+/* ── Analysis Loading & Error ─────────────────────────────────────────── */
+.analysis-loading {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.analysis-loading-text {
+  font-size: 14px;
+  color: #60a5fa;
+  font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
+}
+
+.analysis-error {
+  text-align: center;
+  padding: 40px 20px;
+  font-size: 14px;
+  color: #ef4444;
+  font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
 }
 </style>
