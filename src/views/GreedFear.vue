@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, onUnmounted, ref } from 'vue'
+import { onMounted, reactive, onUnmounted, ref, computed } from 'vue'
 import AppHeader from '../components/AppHeader.vue'
 import * as echarts from 'echarts/core'
 import { GaugeChart } from 'echarts/charts'
@@ -59,6 +59,32 @@ interface MarketAnalysisResponse {
     plain_language: string
   }
   execution_matrix: string
+}
+
+// ── parse markdown table to array ─────────────────────────────────────────────
+interface ExecutionRow {
+  [key: string]: string
+}
+
+function parseMarkdownTable(markdown: string): { headers: string[]; rows: ExecutionRow[] } {
+  const lines = markdown.trim().split('\n').filter(line => line.trim())
+  if (lines.length < 2) return { headers: [], rows: [] }
+
+  // 解析表头 (去除 | 并过滤空字符串)
+  const headers = lines[0].split('|').map(h => h.trim()).filter(h => h && !h.match(/^-+$/))
+
+  // 跳过分隔行 (第二行通常是 |---|---|)
+  const dataLines = lines.slice(2)
+  const rows: ExecutionRow[] = dataLines.map(line => {
+    const cells = line.split('|').map(c => c.trim()).filter(c => c)
+    const row: ExecutionRow = {}
+    headers.forEach((header, i) => {
+      row[header] = cells[i] || ''
+    })
+    return row
+  })
+
+  return { headers, rows }
 }
 
 // ── Two-layer gauge builder (bg arc + colored progress arc) ──────────────────
@@ -329,6 +355,12 @@ const lastUpdated = ref('')
 const marketAnalysis = ref<MarketAnalysisResponse | null>(null)
 const analysisLoading = ref(false)
 const analysisError = ref('')
+
+// ── computed: parse execution matrix table ────────────────────────────────────
+const executionMatrix = computed(() => {
+  if (!marketAnalysis.value?.execution_matrix) return null
+  return parseMarkdownTable(marketAnalysis.value.execution_matrix)
+})
 
 // ── update UI from data ───────────────────────────────────────────────────────
 function renderCrypto(data: MacroSentimentRadarResponse['crypto_market']) {
@@ -622,7 +654,7 @@ onUnmounted(() => {
           <span class="status-ok">✅ 数据已更新</span>
           <span class="status-time">· 最后刷新: {{ lastUpdated }}</span>
         </template>
-        <button class="status-copy" @click="copyData">📋 复制数据</button>
+        <el-button type="success" class="status-copy" @click="copyData">📋 分析数据</el-button>
       </div>
 
       <!-- ── Comprehensive Market Summary ───────────────────────────── -->
@@ -676,11 +708,24 @@ onUnmounted(() => {
         </div>
 
         <!-- 执行矩阵 -->
-        <div class="execution-matrix" v-if="marketAnalysis.execution_matrix">
+        <div class="execution-matrix" v-if="executionMatrix">
           <div class="col-heading">
             <span class="col-icon">📋</span>落地执行矩阵建议
           </div>
-          <div class="execution-matrix-content" v-html="marketAnalysis.execution_matrix" />
+          <div class="table-wrapper">
+            <table class="execution-table">
+              <thead>
+                <tr>
+                  <th v-for="header in executionMatrix.headers" :key="header">{{ header }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, idx) in executionMatrix.rows" :key="idx">
+                  <td v-for="header in executionMatrix.headers" :key="header">{{ row[header] }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -833,21 +878,13 @@ onUnmounted(() => {
 
 .status-copy {
   margin-left: auto;
-  padding: 4px 12px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
-  background: #fff;
-  color: #374151;
   font-size: 11px;
-  font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
   cursor: pointer;
-  transition: all 0.2s;
 }
 
-.status-copy:hover {
-  background: #f3f4f6;
-  border-color: #9ca3af;
-}
+
 
 .gauge-metrics {
   width: 100%;
@@ -1056,37 +1093,36 @@ onUnmounted(() => {
   border-top: 1px solid rgba(203, 213, 225, 0.5);
 }
 
-.execution-matrix-content {
-  font-size: 13px;
-  color: #475569;
-  line-height: 1.7;
+.table-wrapper {
   overflow-x: auto;
+  margin-top: 12px;
 }
 
-.execution-matrix-content :deep(table) {
+.execution-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 12px;
   font-size: 12px;
   font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
 }
 
-.execution-matrix-content :deep(th) {
+.execution-table th {
   background: rgba(59, 130, 246, 0.1);
   color: #1e40af;
-  padding: 8px 12px;
+  padding: 10px 12px;
   text-align: left;
   border: 1px solid rgba(59, 130, 246, 0.2);
   font-weight: 700;
+  white-space: nowrap;
 }
 
-.execution-matrix-content :deep(td) {
-  padding: 8px 12px;
+.execution-table td {
+  padding: 10px 12px;
   border: 1px solid rgba(203, 213, 225, 0.5);
   color: #374151;
+  line-height: 1.6;
 }
 
-.execution-matrix-content :deep(tr:hover td) {
+.execution-table tr:hover td {
   background: rgba(59, 130, 246, 0.03);
 }
 
