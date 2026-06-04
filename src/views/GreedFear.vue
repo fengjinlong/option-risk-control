@@ -281,7 +281,7 @@ function buildProgressBar(
 ): void {
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-      <span style="font-size:11px;color:#6b7280;font-family:'JetBrains Mono','Helvetica Neue',monospace;">${label}</span>
+      <span style="font-size:12px;color:#6b7280;font-family:'JetBrains Mono','Helvetica Neue',monospace;">${label}</span>
       <span style="font-size:13px;color:${color};font-weight:800;font-family:'JetBrains Mono','Helvetica Neue',monospace;">${value.toFixed(1)}%</span>
     </div>
     <div style="height:4px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
@@ -806,7 +806,7 @@ onUnmounted(() => {
 }
 
 .gauge-card-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: #374151;
   font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
@@ -815,7 +815,7 @@ onUnmounted(() => {
 }
 
 .gauge-card-badge {
-  font-size: 10px;
+  font-size: 12px;
   padding: 2px 8px;
   border-radius: 20px;
   background: rgba(239, 68, 68, 0.1);
@@ -879,7 +879,7 @@ onUnmounted(() => {
 .status-copy {
   margin-left: auto;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -993,7 +993,7 @@ onUnmounted(() => {
   margin-left: 12px;
   padding: 2px 10px;
   border-radius: 12px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.05em;
 }
@@ -1032,7 +1032,7 @@ onUnmounted(() => {
 }
 
 .summary-main-label {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   color: #3b82f6;
   font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
@@ -1058,7 +1058,7 @@ onUnmounted(() => {
 }
 
 .analysis-label {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
   letter-spacing: 0.06em;
