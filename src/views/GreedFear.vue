@@ -47,44 +47,21 @@ interface VixRiskRadarResponse {
   }
 }
 
+interface ObservationDetail {
+  description: string
+  implication: string
+}
+
 interface MarketAnalysisResponse {
-  summary: string
-  risk_tier: 'Low' | 'Medium' | 'High' | 'Extreme'
-  cross_market_divergence: {
-    professional_view: string
-    plain_language: string
-  }
-  margin_and_liquidation_test: {
-    professional_view: string
-    plain_language: string
-  }
-  execution_matrix: string
-}
-
-// ── parse markdown table to array ─────────────────────────────────────────────
-interface ExecutionRow {
-  [key: string]: string
-}
-
-function parseMarkdownTable(markdown: string): { headers: string[]; rows: ExecutionRow[] } {
-  const lines = markdown.trim().split('\n').filter(line => line.trim())
-  if (lines.length < 2) return { headers: [], rows: [] }
-
-  // 解析表头 (去除 | 并过滤空字符串)
-  const headers = lines[0].split('|').map(h => h.trim()).filter(h => h && !h.match(/^-+$/))
-
-  // 跳过分隔行 (第二行通常是 |---|---|)
-  const dataLines = lines.slice(2)
-  const rows: ExecutionRow[] = dataLines.map(line => {
-    const cells = line.split('|').map(c => c.trim()).filter(c => c)
-    const row: ExecutionRow = {}
-    headers.forEach((header, i) => {
-      row[header] = cells[i] || ''
-    })
-    return row
-  })
-
-  return { headers, rows }
+  current_status_summary: string
+  crypto_status: ObservationDetail
+  us_stock_status: ObservationDetail
+  vix_risk_pricing: ObservationDetail
+  market_divergence: ObservationDetail
+  monitoring_triggers: string[]
+  risk_management_advice: string
+  quick_checklist: string[]
+  brief_conclusion: string
 }
 
 // ── Two-layer gauge builder (bg arc + colored progress arc) ──────────────────
@@ -355,12 +332,6 @@ const lastUpdated = ref('')
 const marketAnalysis = ref<MarketAnalysisResponse | null>(null)
 const analysisLoading = ref(false)
 const analysisError = ref('')
-
-// ── computed: parse execution matrix table ────────────────────────────────────
-const executionMatrix = computed(() => {
-  if (!marketAnalysis.value?.execution_matrix) return null
-  return parseMarkdownTable(marketAnalysis.value.execution_matrix)
-})
 
 // ── update UI from data ───────────────────────────────────────────────────────
 function renderCrypto(data: MacroSentimentRadarResponse['crypto_market']) {
@@ -662,70 +633,111 @@ onUnmounted(() => {
         <div class="summary-title">
           <span class="summary-icon">⚡</span>
           Comprehensive Market Summary · 跨市场量化风控总结
-          <span :class="['risk-tier-badge', `risk-tier-${marketAnalysis.risk_tier.toLowerCase()}`]">
-            {{ marketAnalysis.risk_tier }}
-          </span>
         </div>
 
-        <!-- 一句话总结 -->
+        <!-- 当前态势结论 -->
         <div class="summary-main">
-          <div class="summary-main-label">🎯 风控总监冷酷一句话</div>
-          <p class="summary-main-text">{{ marketAnalysis.summary }}</p>
+          <div class="summary-main-label">🎯 当前态势结论</div>
+          <p class="summary-main-text">{{ marketAnalysis.current_status_summary }}</p>
         </div>
 
-        <div class="summary-content">
-          <!-- 跨市场情绪背离剖析 -->
-          <div class="summary-col">
-            <div class="col-heading">
-              <span class="col-icon">📊</span>跨市场情绪背离剖析
+        <!-- 关键观测与解读 -->
+        <div class="observation-grid">
+          <!-- 加密情绪与波动率状态 -->
+          <div class="observation-card">
+            <div class="observation-card-header">
+              <span class="observation-icon">🪙</span>
+              <span class="observation-title">加密情绪与波动率状态</span>
             </div>
-            <div class="analysis-block">
-              <div class="analysis-label professional">⚡ 专业视点</div>
-              <p v-html="marketAnalysis.cross_market_divergence.professional_view.replace(/\n/g, '<br>')" />
+            <div class="observation-block">
+              <div class="observation-label">📊 说明</div>
+              <p>{{ marketAnalysis.crypto_status.description }}</p>
             </div>
-            <div class="analysis-block">
-              <div class="analysis-label plain">⚡ 换成白话</div>
-              <p v-html="marketAnalysis.cross_market_divergence.plain_language.replace(/\n/g, '<br>')" />
+            <div class="observation-block">
+              <div class="observation-label">⚡ 隐含含义</div>
+              <p>{{ marketAnalysis.crypto_status.implication }}</p>
             </div>
           </div>
 
-          <div class="summary-divider" />
+          <!-- 美股情绪与波动率状态 -->
+          <div class="observation-card">
+            <div class="observation-card-header">
+              <span class="observation-icon">📈</span>
+              <span class="observation-title">美股情绪与波动率状态</span>
+            </div>
+            <div class="observation-block">
+              <div class="observation-label">📊 说明</div>
+              <p>{{ marketAnalysis.us_stock_status.description }}</p>
+            </div>
+            <div class="observation-block">
+              <div class="observation-label">⚡ 隐含含义</div>
+              <p>{{ marketAnalysis.us_stock_status.implication }}</p>
+            </div>
+          </div>
 
-          <!-- 压力测试与保证金架构 -->
-          <div class="summary-col">
-            <div class="col-heading">
-              <span class="col-icon">🧪</span>压力测试与保证金架构
+          <!-- VIX 尾部风险定价 -->
+          <div class="observation-card">
+            <div class="observation-card-header">
+              <span class="observation-icon">🌊</span>
+              <span class="observation-title">VIX 尾部风险定价</span>
             </div>
-            <div class="analysis-block">
-              <div class="analysis-label professional">⚡ 专业视点</div>
-              <p v-html="marketAnalysis.margin_and_liquidation_test.professional_view.replace(/\n/g, '<br>')" />
+            <div class="observation-block">
+              <div class="observation-label">📊 说明</div>
+              <p>{{ marketAnalysis.vix_risk_pricing.description }}</p>
             </div>
-            <div class="analysis-block">
-              <div class="analysis-label plain">⚡ 换成白话</div>
-              <p v-html="marketAnalysis.margin_and_liquidation_test.plain_language.replace(/\n/g, '<br>')" />
+            <div class="observation-block">
+              <div class="observation-label">⚡ 隐含含义</div>
+              <p>{{ marketAnalysis.vix_risk_pricing.implication }}</p>
+            </div>
+          </div>
+
+          <!-- 市场背离与资产错配 -->
+          <div class="observation-card">
+            <div class="observation-card-header">
+              <span class="observation-icon">✂️</span>
+              <span class="observation-title">市场背离与资产错配</span>
+            </div>
+            <div class="observation-block">
+              <div class="observation-label">📊 说明</div>
+              <p>{{ marketAnalysis.market_divergence.description }}</p>
+            </div>
+            <div class="observation-block">
+              <div class="observation-label">⚡ 隐含含义</div>
+              <p>{{ marketAnalysis.market_divergence.implication }}</p>
             </div>
           </div>
         </div>
 
-        <!-- 执行矩阵 -->
-        <div class="execution-matrix" v-if="executionMatrix">
-          <div class="col-heading">
-            <span class="col-icon">📋</span>落地执行矩阵建议
+        <!-- 操作提示与下一步关注点 -->
+        <div class="action-section">
+          <div class="action-block">
+            <div class="action-label">📈 变盘触发条件</div>
+            <ul class="action-list">
+              <li v-for="(trigger, idx) in marketAnalysis.monitoring_triggers" :key="idx">
+                {{ trigger }}
+              </li>
+            </ul>
           </div>
-          <div class="table-wrapper">
-            <table class="execution-table">
-              <thead>
-                <tr>
-                  <th v-for="header in executionMatrix.headers" :key="header">{{ header }}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(row, idx) in executionMatrix.rows" :key="idx">
-                  <td v-for="header in executionMatrix.headers" :key="header">{{ row[header] }}</td>
-                </tr>
-              </tbody>
-            </table>
+
+          <div class="action-block">
+            <div class="action-label">🛡️ 风控建议</div>
+            <p class="action-text">{{ marketAnalysis.risk_management_advice }}</p>
           </div>
+
+          <div class="action-block">
+            <div class="action-label">🔍 快速核查清单</div>
+            <ul class="action-list">
+              <li v-for="(item, idx) in marketAnalysis.quick_checklist" :key="idx">
+                {{ item }}
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 简短结论 -->
+        <div class="brief-conclusion">
+          <div class="brief-conclusion-label">🔒 简短结论</div>
+          <p>{{ marketAnalysis.brief_conclusion }}</p>
         </div>
       </div>
 
@@ -806,7 +818,7 @@ onUnmounted(() => {
 }
 
 .gauge-card-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: #374151;
   font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
@@ -815,7 +827,7 @@ onUnmounted(() => {
 }
 
 .gauge-card-badge {
-  font-size: 12px;
+  font-size: 13px;
   padding: 2px 8px;
   border-radius: 20px;
   background: rgba(239, 68, 68, 0.1);
@@ -855,7 +867,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
   font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
   padding: 0 4px;
 }
@@ -879,7 +891,7 @@ onUnmounted(() => {
 .status-copy {
   margin-left: auto;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
 }
 
@@ -939,7 +951,7 @@ onUnmounted(() => {
 }
 
 .col-heading {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: #64748b;
   font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
@@ -988,51 +1000,17 @@ onUnmounted(() => {
   font-style: normal;
 }
 
-/* ── Risk Tier Badge ─────────────────────────────────────────────────── */
-.risk-tier-badge {
-  margin-left: 12px;
-  padding: 2px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-}
-
-.risk-tier-low {
-  background: rgba(34, 197, 94, 0.15);
-  color: #16a34a;
-  border: 1px solid rgba(34, 197, 94, 0.3);
-}
-
-.risk-tier-medium {
-  background: rgba(234, 179, 8, 0.15);
-  color: #ca8a04;
-  border: 1px solid rgba(234, 179, 8, 0.3);
-}
-
-.risk-tier-high {
-  background: rgba(249, 115, 22, 0.15);
-  color: #ea580c;
-  border: 1px solid rgba(249, 115, 22, 0.3);
-}
-
-.risk-tier-extreme {
-  background: rgba(239, 68, 68, 0.15);
-  color: #dc2626;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
 /* ── Summary Main ─────────────────────────────────────────────────────── */
 .summary-main {
   background: rgba(59, 130, 246, 0.06);
   border: 1px solid rgba(59, 130, 246, 0.15);
   border-radius: 12px;
   padding: 14px 16px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .summary-main-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: #3b82f6;
   font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
@@ -1048,81 +1026,166 @@ onUnmounted(() => {
   margin: 0;
 }
 
-/* ── Analysis Block ────────────────────────────────────────────────────── */
-.analysis-block {
-  margin-bottom: 12px;
+/* ── Observation Grid ────────────────────────────────────────────────── */
+.observation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
-.analysis-block:last-child {
+@media (max-width: 900px) {
+  .observation-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.observation-card {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(203, 213, 225, 0.7);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.observation-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(203, 213, 225, 0.5);
+}
+
+.observation-icon {
+  font-size: 18px;
+}
+
+.observation-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e40af;
+  font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
+  letter-spacing: 0.04em;
+}
+
+.observation-block {
+  margin-bottom: 10px;
+}
+
+.observation-block:last-child {
   margin-bottom: 0;
 }
 
-.analysis-label {
-  font-size: 12px;
+.observation-label {
+  font-size: 10px;
   font-weight: 700;
+  color: #7c3aed;
   font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   margin-bottom: 6px;
 }
 
-.analysis-label.professional {
-  color: #7c3aed;
-}
-
-.analysis-label.plain {
-  color: #0891b2;
-}
-
-.analysis-block p {
+.observation-block p {
   font-size: 13px;
   color: #475569;
-  line-height: 1.75;
-  margin: 0 0 8px;
+  line-height: 1.7;
+  margin: 0;
 }
 
-.analysis-block p:last-child {
-  margin-bottom: 0;
+/* ── Action Section ───────────────────────────────────────────────────── */
+.action-section {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr;
+  gap: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(203, 213, 225, 0.6);
+  border-radius: 16px;
+  margin-bottom: 16px;
 }
 
-/* ── Execution Matrix ──────────────────────────────────────────────────── */
-.execution-matrix {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(203, 213, 225, 0.5);
+@media (max-width: 900px) {
+  .action-section {
+    grid-template-columns: 1fr;
+  }
 }
 
-.table-wrapper {
-  overflow-x: auto;
-  margin-top: 12px;
+.action-block {
+  padding: 0 8px;
 }
 
-.execution-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-  font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
+.action-block:first-child {
+  padding-left: 0;
 }
 
-.execution-table th {
-  background: rgba(59, 130, 246, 0.1);
-  color: #1e40af;
-  padding: 10px 12px;
-  text-align: left;
-  border: 1px solid rgba(59, 130, 246, 0.2);
+.action-block:last-child {
+  padding-right: 0;
+}
+
+.action-label {
+  font-size: 11px;
   font-weight: 700;
-  white-space: nowrap;
+  color: #0891b2;
+  font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
 }
 
-.execution-table td {
-  padding: 10px 12px;
-  border: 1px solid rgba(203, 213, 225, 0.5);
-  color: #374151;
+.action-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.action-list li {
+  font-size: 13px;
+  color: #475569;
   line-height: 1.6;
+  padding: 6px 0;
+  padding-left: 16px;
+  position: relative;
 }
 
-.execution-table tr:hover td {
-  background: rgba(59, 130, 246, 0.03);
+.action-list li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: #3b82f6;
+  font-weight: 700;
+}
+
+.action-text {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* ── Brief Conclusion ─────────────────────────────────────────────────── */
+.brief-conclusion {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.08), rgba(59, 130, 246, 0.08));
+  border: 1px solid rgba(124, 58, 237, 0.15);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.brief-conclusion-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #7c3aed;
+  font-family: 'JetBrains Mono', 'Helvetica Neue', monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.brief-conclusion p {
+  font-size: 13px;
+  color: #1e293b;
+  line-height: 1.7;
+  margin: 0;
 }
 
 /* ── Analysis Loading & Error ─────────────────────────────────────────── */
