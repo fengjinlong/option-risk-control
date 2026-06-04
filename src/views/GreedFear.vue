@@ -917,6 +917,7 @@ onUnmounted(() => {
   border-radius: 20px;
   padding: 20px 24px;
   box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
+  text-align: left;
 }
 
 .summary-title {
