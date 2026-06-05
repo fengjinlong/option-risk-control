@@ -45,6 +45,16 @@ async function fetchWatchlist() {
   }
 }
 
+async function deleteWatchlistTicker(ticker: string) {
+  try {
+    await request.delete(`/api/v1/watchlist/${ticker}`)
+    removeTicker(ticker)
+    ElMessage.success(`${ticker} 已删除`)
+  } catch (e) {
+    console.error('deleteWatchlistTicker failed', e)
+  }
+}
+
 // ── portfolio summary API ───────────────────────────────────────────────────
 
 interface PortfolioSummaryResponse {
@@ -500,7 +510,12 @@ const tableData = computed(() => {
             :class="priceChangeClass(livePrices[item.ticker]?.change24h || 0)">
             <div class="ticker-symbol">{{ item.ticker }}</div>
             <div class="ticker-price">${{ formatPrice(livePrices[item.ticker]?.price) }}</div>
-            <div class="ticker-change">{{ formatPriceChange(livePrices[item.ticker]?.change24h || 0) }}</div>
+            <!-- <div class="ticker-change">{{ formatPriceChange(livePrices[item.ticker]?.change24h || 0) }}</div> -->
+            <button class="ticker-delete" @click.stop="deleteWatchlistTicker(item.ticker)" title="删除">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2 2L10 10M10 2L2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -806,10 +821,27 @@ const tableData = computed(() => {
   border: 1px solid var(--el-border-color-light);
   transition: border-color 0.2s;
   cursor: pointer;
+  position: relative;
 }
 
 .ticker-item:hover {
   border-color: var(--el-border-color);
+}
+
+.ticker-delete {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  color: var(--el-text-color-secondary);
+  transition: color 0.2s;
+}
+
+.ticker-delete:hover {
+  color: var(--el-color-danger);
 }
 
 .ticker-symbol {
