@@ -6,6 +6,8 @@ import AppHeader from '../components/AppHeader.vue'
 import request from '../utils/request'
 import {
   useSpotPortfolio,
+  initFromWatchlist,
+  setLivePrice,
   type TransactionSide,
 } from '../composables/useSpotPortfolio'
 import {
@@ -18,6 +20,30 @@ import {
   formatDisplay,
   formatNav,
 } from '../composables/useCryptoMath'
+
+// ── watchlist API ─────────────────────────────────────────────────────────────
+
+interface WatchlistItem {
+  ticker: string
+  live_price: string
+}
+
+const watchlistLoading = ref(false)
+
+async function fetchWatchlist() {
+  watchlistLoading.value = true
+  try {
+    const items = await request.get<WatchlistItem[]>('/api/v1/watchlist') as unknown as WatchlistItem[]
+    initFromWatchlist(items)
+    for (const item of items) {
+      setLivePrice(item.ticker, item.live_price)
+    }
+  } catch (e) {
+    console.error('fetchWatchlist failed', e)
+  } finally {
+    watchlistLoading.value = false
+  }
+}
 
 // ── portfolio summary API ───────────────────────────────────────────────────
 
@@ -165,6 +191,7 @@ watch(donutData, () => { updateDonutChart() }, { deep: true })
 
 onMounted(() => {
   initDonutChart()
+  fetchWatchlist()
   fetchPortfolioSummary()
   window.addEventListener('resize', handleResize)
 })
@@ -359,7 +386,7 @@ function formatTxTime(ts: number): string {
 // 添加标的弹窗
 // ══════════════════════════════════════════════════════════════════════════════
 
-const ALL_TOKENS = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'DOT', 'AVAX', 'MATIC', 'LINK', 'UNI', 'ATOM', 'LTC', 'BCH', 'XLM', 'ALGO', 'VET', 'FIL', 'AAVE']
+const ALL_TOKENS = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'DOT', 'AVAX', 'ALGO', 'VET', 'FIL', 'AAVE']
 const addTokenModalVisible = ref(false)
 const addTokenSearch = ref('')
 const selectedAddToken = ref('')
@@ -376,10 +403,13 @@ function openAddTokenModal() {
 
 function confirmAddToken() {
   if (!selectedAddToken.value) return
-  addTicker(selectedAddToken.value)
-  ElMessage.success(`${selectedAddToken.value} 已添加`)
-  addTokenModalVisible.value = false
-  selectedAddToken.value = ''
+  request.post('/api/v1/watchlist', { ticker: selectedAddToken.value })
+    .then(() => {
+      ElMessage.success(`${selectedAddToken.value} 已添加`)
+      addTokenModalVisible.value = false
+      selectedAddToken.value = ''
+    })
+    .catch(() => { })
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -629,19 +659,8 @@ const tableData = computed(() => {
          ══════════════════════════════════════════════════════════════════════════ -->
     <el-dialog v-model="addTokenModalVisible" title="添加标的" width="400px">
       <div class="add-token-form">
-        <el-select
-          v-model="selectedAddToken"
-          placeholder="请选择标的"
-          filterable
-          clearable
-          style="width: 100%"
-        >
-          <el-option
-            v-for="ticker in addTokenAvailable"
-            :key="ticker"
-            :label="ticker"
-            :value="ticker"
-          />
+        <el-select v-model="selectedAddToken" placeholder="请选择标的" filterable clearable style="width: 100%">
+          <el-option v-for="ticker in addTokenAvailable" :key="ticker" :label="ticker" :value="ticker" />
         </el-select>
         <div v-if="addTokenAvailable.length === 0" class="empty-result">
           <p v-if="addTokenSearch">没有匹配 "{{ addTokenSearch }}"</p>
