@@ -58,6 +58,7 @@ interface CreateTransactionRequest {
   side: 'BUY' | 'SELL'
   price: string
   quantity: string
+  note?: string
 }
 
 interface TransactionHistoryItem {
@@ -188,20 +189,13 @@ function updateDonutChart() {
           价值: $${formatNav(notionalValue)}`
       },
     },
-    legend: {
-      orient: 'vertical',
-      right: 10,
-      top: 'center',
-      textStyle: {
-        color: 'var(--el-text-color-regular)',
-      },
-    },
+    legend: { show: false },
     color: CHART_COLORS,
     series: [
       {
         type: 'pie',
-        radius: ['45%', '70%'],
-        center: ['35%', '50%'],
+        radius: '65%',
+        center: ['50%', '50%'],
         avoidLabelOverlap: true,
         itemStyle: {
           borderRadius: 6,
@@ -311,6 +305,7 @@ const txQtyInput = ref('')
 const txAmountInput = ref('')
 const txInputMode = ref<'qty' | 'amount'>('qty')
 const txError = ref('')
+const txNote = ref('')
 
 function openTxModal(ticker: string) {
   const h = getHolding(ticker)
@@ -323,6 +318,7 @@ function openTxModal(ticker: string) {
   txAmountInput.value = ''
   txInputMode.value = 'qty'
   txError.value = ''
+  txNote.value = ''
   txModalVisible.value = true
 }
 
@@ -391,6 +387,7 @@ async function confirmTx() {
     side: txSide.value === 'buy' ? 'BUY' : 'SELL',
     price: txPriceInput.value,
     quantity: txQtyInput.value,
+    ...(txNote.value.trim() ? { note: txNote.value.trim() } : {}),
   }
 
   try {
@@ -426,6 +423,7 @@ async function fetchTransactionHistory(ticker: string) {
         price: item.price,
         qty: item.quantity,
         amount: item.amount,
+        note: item.note || '',
         timestamp: new Date(item.executed_at).getTime(),
       }))
       .sort((a, b) => b.timestamp - a.timestamp)
@@ -494,6 +492,7 @@ function confirmAddToken() {
       ElMessage.success(`${selectedAddToken.value} 已添加`)
       addTokenModalVisible.value = false
       selectedAddToken.value = ''
+      return fetchWatchlist()
     })
     .catch(() => { })
 }
@@ -562,11 +561,18 @@ const tableData = computed(() => {
             <span v-if="portfolioSummary">{{ formatPnlPercent(pnlPercent) }}</span>
           </div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card allocation-card">
           <div class="stat-label">资产配置</div>
-          <div class="donut-wrapper">
-            <div ref="donutRef" class="donut-chart"></div>
-            <div v-if="donutData.length === 0" class="donut-empty">暂无持仓</div>
+          <div class="allocation-body">
+            <div ref="donutRef" class="allocation-chart"></div>
+            <!-- <div v-if="donutData.length === 0" class="allocation-empty">暂无持仓</div>
+            <div v-else class="allocation-legend">
+              <div v-for="(item, index) in donutData" :key="item.name" class="legend-item">
+                <span class="legend-dot" :style="{ background: getChartColor(index) }"></span>
+                <span class="legend-name">{{ item.name }}</span>
+                <span class="legend-pct">{{ item.value.toFixed(2) }}%</span>
+              </div>
+            </div> -->
           </div>
         </div>
       </div>
@@ -684,6 +690,12 @@ const tableData = computed(() => {
           </div>
         </div>
 
+        <div class="form-row">
+          <label>备注 <span class="hint">(可选)</span></label>
+          <el-input v-model="txNote" type="textarea" :rows="2" placeholder="可输入交易备注，如策略、来源等" maxlength="200"
+            show-word-limit />
+        </div>
+
         <div v-if="txError" class="error-msg">
           <el-icon>
             <WarningFilled />
@@ -699,7 +711,7 @@ const tableData = computed(() => {
     <!-- ══════════════════════════════════════════════════════════════════════════
          历史记录弹窗
          ══════════════════════════════════════════════════════════════════════════ -->
-    <el-dialog v-model="historyModalVisible" :title="`交易历史 - ${historyModalTicker}`" width="900px">
+    <el-dialog v-model="historyModalVisible" :title="`交易历史 - ${historyModalTicker}`" width="1020px">
       <el-table :data="historyModalTransactions" stripe size="small" v-if="historyModalTransactions.length > 0">
         <el-table-column label="时间" width="180" align="center">
           <template #default="{ row }">{{ formatTxTime(row.timestamp) }}</template>
@@ -714,11 +726,16 @@ const tableData = computed(() => {
         <el-table-column label="价格 (USDT)" width="120" align="center">
           <template #default="{ row }">{{ formatDisplay(row.price) }}</template>
         </el-table-column>
-        <el-table-column label="数量" width="" align="center">
+        <el-table-column label="数量" width="120" align="center">
           <template #default="{ row }">{{ formatDisplay(row.qty, 6) }}</template>
         </el-table-column>
-        <el-table-column label="金额 (USDT)" width="" align="center">
+        <el-table-column label="金额 (USDT)" width="120" align="center">
           <template #default="{ row }">{{ formatDisplay(row.amount) }}</template>
+        </el-table-column>
+        <el-table-column label="备注" min-width="" align="center">
+          <template #default="{ row }">
+            <span class="tx-note">{{ row.note || '—' }}</span>
+          </template>
         </el-table-column>
         <el-table-column label="操作" width="120" align="center">
           <template #default="{ row }">
@@ -852,6 +869,69 @@ const tableData = computed(() => {
   justify-content: center;
   color: var(--el-text-color-secondary);
   font-size: 13px;
+}
+
+.allocation-card {
+  min-height: 140px;
+}
+
+.allocation-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.allocation-chart {
+  width: 100px;
+  height: 100px;
+  flex-shrink: 0;
+  margin: 0 auto;
+}
+
+.allocation-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.allocation-legend {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-name {
+  color: var(--el-text-color-regular);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legend-pct {
+  color: var(--el-text-color-secondary);
+  font-weight: 500;
+  flex-shrink: 0;
 }
 
 .ticker-section {
@@ -1080,6 +1160,12 @@ const tableData = computed(() => {
   padding: 48px;
   text-align: center;
   color: var(--el-text-color-secondary);
+}
+
+.tx-note {
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+  word-break: break-word;
 }
 
 @media (max-width: 1024px) {
