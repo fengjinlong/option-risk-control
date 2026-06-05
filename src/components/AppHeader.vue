@@ -68,7 +68,7 @@ function go(path: string) {
   <header class="app-header">
     <div class="header-left">
       <span class="logo-text">📊</span>
-      <span class="title">Pre-trade Risk Workspace</span>
+      <span class="title">Pre-trade Risk</span>
     </div>
     <div class="header-center">
       <el-button v-for="item in navItems" :key="item.path" :type="isActive(item.path) ? 'success' : 'primary'"
@@ -119,7 +119,7 @@ function go(path: string) {
 .header-center {
   display: flex;
   align-items: center;
-  gap: 6px;
+  /* gap: 6px; */
 }
 
 .header-right {

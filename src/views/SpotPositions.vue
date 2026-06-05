@@ -194,7 +194,7 @@ function updateDonutChart() {
     series: [
       {
         type: 'pie',
-        radius: ['38%', '72%'],
+        radius: ['55%', '90%'],
         center: ['50%', '50%'],
         avoidLabelOverlap: false,
         itemStyle: {
@@ -532,32 +532,42 @@ const tableData = computed(() => {
     <div class="spot-body">
       <!-- 顶部统计卡片 -->
       <div class="dashboard-section">
-        <div class="stat-card">
-          <div class="stat-label">净资产 (NAV)</div>
-          <div class="stat-value primary">
-            <span v-if="summaryLoading">—</span>
-            <span v-else>{{ '$' + formatNav(portfolioSummary?.net_asset_value || '0') }}</span>
+        <!-- 左侧 3/4：2x2 指标网格 -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">净资产 (NAV)</div>
+            <div class="stat-value primary">
+              <span v-if="summaryLoading">—</span>
+              <span v-else>{{ '$' + formatNav(portfolioSummary?.net_asset_value || '0') }}</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">现金余额 (USD)</div>
+            <div class="stat-value primary">
+              <span v-if="summaryLoading">—</span>
+              <span v-else>{{ '$' + formatNav(portfolioSummary?.cash_balance || '0') }}</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">浮动盈亏</div>
+            <div class="stat-value" :class="pnlClass(portfolioSummary?.total_floating_pnl || '0')">
+              <span v-if="summaryLoading">—</span>
+              <span v-else>{{ formatPnl(portfolioSummary?.total_floating_pnl || '0') }}</span>
+            </div>
+            <div class="stat-sub" v-if="!summaryLoading">
+              <span v-if="portfolioSummary">{{ formatPnlPercent(pnlPercent) }}</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">持仓数量</div>
+            <div class="stat-value">
+              <span>{{ holdingsDirect.length }}</span>
+            </div>
           </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-label">现金余额 (USD)</div>
-          <div class="stat-value primary">
-            <span v-if="summaryLoading">—</span>
-            <span v-else>{{ '$' + formatNav(portfolioSummary?.cash_balance || '0') }}</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">浮动盈亏</div>
-          <div class="stat-value" :class="pnlClass(portfolioSummary?.total_floating_pnl || '0')">
-            <span v-if="summaryLoading">—</span>
-            <span v-else>{{ formatPnl(portfolioSummary?.total_floating_pnl || '0') }}</span>
-          </div>
-          <div class="stat-sub" v-if="!summaryLoading">
-            <span v-if="portfolioSummary">{{ formatPnlPercent(pnlPercent) }}</span>
-          </div>
-        </div>
-        <div class="stat-card allocation-card">
-          <div class="stat-label">资产配置</div>
+        <!-- 右侧 1/4：资产配置 -->
+        <div class="allocation-card">
+          <!-- <div class="stat-label" style="margin-bottom: 8px;">资产配置</div> -->
           <div class="allocation-body">
             <div ref="donutRef" class="allocation-chart"></div>
           </div>
@@ -622,7 +632,7 @@ const tableData = computed(() => {
               <el-space size="small">
                 <el-button type="primary" size="small" @click="openTxModal(row.ticker)">记录</el-button>
                 <el-button type="info" size="small" plain @click="openHistoryModal(row.ticker)">历史 ({{ row.txCount
-                }})</el-button>
+                  }})</el-button>
               </el-space>
             </template>
           </el-table-column>
@@ -673,7 +683,7 @@ const tableData = computed(() => {
           <label>{{ txInputMode === 'qty' ? '金额 (USDT)' : `数量 (${txModalTicker})` }}</label>
           <div class="calc-value">{{ txInputMode === 'qty' ? (txAmountInput || '0.000000') : (txQtyInput ||
             '0.000000')
-            }}
+          }}
           </div>
         </div>
 
@@ -792,30 +802,38 @@ const tableData = computed(() => {
 }
 
 .dashboard-section {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 16px;
   display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  flex: 4;
+  background: #ddd;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
 .stat-card {
-  background: var(--el-fill-color-light);
-  border-radius: 4px;
-  padding: 20px;
+  background: #fff;
+  padding: 16px 20px;
   display: flex;
-  flex: 1;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
+  justify-content: center;
 }
 
 .stat-label {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--el-text-color-secondary);
   font-weight: 500;
 }
 
 .stat-value {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 700;
   font-family: var(--el-font-family);
   color: var(--el-text-color-primary);
@@ -834,42 +852,32 @@ const tableData = computed(() => {
 }
 
 .stat-sub {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--el-text-color-secondary);
-}
-
-.donut-wrapper {
-  position: relative;
-  height: 140px;
-}
-
-.donut-chart {
-  width: 100%;
-  height: 100%;
-}
-
-.donut-empty {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
 }
 
 .allocation-card {
+  flex: 1;
+  background: rgba(82, 196, 26, 0.2);
+  border-radius: 4px;
+  /* padding: 8px 12px; */
   display: flex;
   flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .allocation-body {
   flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .allocation-chart {
   width: 100%;
-  height: 160px;
+  height: 100%;
 }
 
 .ticker-section {
