@@ -362,16 +362,24 @@ function formatTxTime(ts: number): string {
 const ALL_TOKENS = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'DOT', 'AVAX', 'MATIC', 'LINK', 'UNI', 'ATOM', 'LTC', 'BCH', 'XLM', 'ALGO', 'VET', 'FIL', 'AAVE']
 const addTokenModalVisible = ref(false)
 const addTokenSearch = ref('')
+const selectedAddToken = ref('')
 
 const addTokenAvailable = computed(() =>
   ALL_TOKENS.filter(t => !holdingsDirect.find(h => h.ticker === t) && t.toLowerCase().includes(addTokenSearch.value.toLowerCase()))
 )
 
-function selectAddToken(ticker: string) {
-  addTicker(ticker)
-  ElMessage.success(`${ticker} 已添加`)
-  addTokenModalVisible.value = false
+function openAddTokenModal() {
+  selectedAddToken.value = ''
   addTokenSearch.value = ''
+  addTokenModalVisible.value = true
+}
+
+function confirmAddToken() {
+  if (!selectedAddToken.value) return
+  addTicker(selectedAddToken.value)
+  ElMessage.success(`${selectedAddToken.value} 已添加`)
+  addTokenModalVisible.value = false
+  selectedAddToken.value = ''
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -451,7 +459,7 @@ const tableData = computed(() => {
       <div class="ticker-section">
         <div class="section-header">
           <span class="section-title">实时价格</span>
-          <el-button size="small" type="primary" @click="addTokenModalVisible = true">
+          <el-button size="small" type="primary" @click="openAddTokenModal">
             <el-icon>
               <Plus />
             </el-icon>添加标的
@@ -621,17 +629,29 @@ const tableData = computed(() => {
          ══════════════════════════════════════════════════════════════════════════ -->
     <el-dialog v-model="addTokenModalVisible" title="添加标的" width="400px">
       <div class="add-token-form">
-        <el-input v-model="addTokenSearch" placeholder="搜索..." prefix-icon="Search" clearable />
-        <div class="token-list">
-          <div v-for="ticker in addTokenAvailable" :key="ticker" class="token-item" @click="selectAddToken(ticker)">
-            <span class="token-symbol">{{ ticker }}</span>
-          </div>
-          <div v-if="addTokenAvailable.length === 0" class="empty-result">
-            <p v-if="addTokenSearch">没有匹配 "{{ addTokenSearch }}"</p>
-            <p v-else>所有可选标的已添加</p>
-          </div>
+        <el-select
+          v-model="selectedAddToken"
+          placeholder="请选择标的"
+          filterable
+          clearable
+          style="width: 100%"
+        >
+          <el-option
+            v-for="ticker in addTokenAvailable"
+            :key="ticker"
+            :label="ticker"
+            :value="ticker"
+          />
+        </el-select>
+        <div v-if="addTokenAvailable.length === 0" class="empty-result">
+          <p v-if="addTokenSearch">没有匹配 "{{ addTokenSearch }}"</p>
+          <p v-else>所有可选标的已添加</p>
         </div>
       </div>
+      <template #footer>
+        <el-button @click="addTokenModalVisible = false">取消</el-button>
+        <el-button type="primary" :disabled="!selectedAddToken" @click="confirmAddToken">保存</el-button>
+      </template>
     </el-dialog>
 
     <!-- ══════════════════════════════════════════════════════════════════════════
