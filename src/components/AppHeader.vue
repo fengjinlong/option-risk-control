@@ -15,6 +15,8 @@ const navItems = [
   { path: '/iv-alert', label: '开仓IV预警' },
   { path: '/position-risk', label: '持仓风控评估' },
   { path: '/greed-fear', label: '贪婪恐慌' },
+  // 现货持仓
+  { path: '/spot-positions', label: '现货持仓' },
 ]
 
 function isActive(path: string) {
@@ -69,13 +71,8 @@ function go(path: string) {
       <span class="title">Pre-trade Risk Workspace</span>
     </div>
     <div class="header-center">
-      <el-button
-        v-for="item in navItems"
-        :key="item.path"
-        :type="isActive(item.path) ? 'success' : 'primary'"
-        size="small"
-        @click="go(item.path)"
-      >{{ item.label }}</el-button>
+      <el-button v-for="item in navItems" :key="item.path" :type="isActive(item.path) ? 'success' : 'primary'"
+        size="small" @click="go(item.path)">{{ item.label }}</el-button>
     </div>
     <div class="header-right">
       <el-tag type="success" size="small">BTC IV%: {{ volRadar.BTC.iv_percentile_1y || '--' }}</el-tag>
