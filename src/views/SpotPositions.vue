@@ -60,6 +60,16 @@ interface CreateTransactionRequest {
   quantity: string
 }
 
+interface TransactionHistoryItem {
+  id: number
+  ticker: string
+  side: 'BUY' | 'SELL'
+  price: string
+  quantity: string
+  amount: string
+  executed_at: string
+}
+
 async function fetchHoldings() {
   try {
     const items = await request.get<HoldingsItem[]>('/api/v1/portfolio/holdings') as unknown as HoldingsItem[]
@@ -403,21 +413,41 @@ async function confirmTx() {
 const historyModalVisible = ref(false)
 const historyModalTicker = ref('')
 const historyModalTransactions = ref<any[]>([])
-const historyDeleteConfirmId = ref<string | null>(null)
+const historyDeleteConfirmId = ref<string | number | null>(null)
 
-function openHistoryModal(ticker: string) {
-  const h = getHolding(ticker)
-  historyModalTicker.value = ticker
-  historyModalTransactions.value = [...(h?.transactions || [])].sort((a, b) => b.timestamp - a.timestamp)
-  historyDeleteConfirmId.value = null
-  historyModalVisible.value = true
+async function fetchTransactionHistory(ticker: string) {
+  try {
+    const items = await request.get<TransactionHistoryItem[]>(`/api/v1/transactions/${ticker}`) as unknown as TransactionHistoryItem[]
+    historyModalTransactions.value = items
+      .map(item => ({
+        id: item.id,
+        ticker: item.ticker,
+        side: item.side === 'BUY' ? 'buy' : 'sell',
+        price: item.price,
+        qty: item.quantity,
+        amount: item.amount,
+        timestamp: new Date(item.executed_at).getTime(),
+      }))
+      .sort((a, b) => b.timestamp - a.timestamp)
+  } catch (e) {
+    console.error('fetchTransactionHistory failed', e)
+    historyModalTransactions.value = []
+    ElMessage.error('加载交易历史失败')
+  }
 }
 
-function deleteHistoryTx(txId: string) {
+async function openHistoryModal(ticker: string) {
+  historyModalTicker.value = ticker
+  historyDeleteConfirmId.value = null
+  historyModalTransactions.value = []
+  historyModalVisible.value = true
+  await fetchTransactionHistory(ticker)
+}
+
+function deleteHistoryTx(txId: string | number) {
   if (historyDeleteConfirmId.value === txId) {
-    deleteTransaction(historyModalTicker.value, txId)
-    const h = getHolding(historyModalTicker.value)
-    historyModalTransactions.value = [...(h?.transactions || [])].sort((a, b) => b.timestamp - a.timestamp)
+    deleteTransaction(historyModalTicker.value, String(txId))
+    historyModalTransactions.value = historyModalTransactions.value.filter(tx => tx.id !== txId)
     historyDeleteConfirmId.value = null
     ElMessage.success('交易已删除')
   } else {
@@ -592,7 +622,7 @@ const tableData = computed(() => {
               <el-space size="small">
                 <el-button type="primary" size="small" @click="openTxModal(row.ticker)">记录</el-button>
                 <el-button type="info" size="small" plain @click="openHistoryModal(row.ticker)">历史 ({{ row.txCount
-                  }})</el-button>
+                }})</el-button>
               </el-space>
             </template>
           </el-table-column>
@@ -643,7 +673,7 @@ const tableData = computed(() => {
           <label>{{ txInputMode === 'qty' ? '金额 (USDT)' : `数量 (${txModalTicker})` }}</label>
           <div class="calc-value">{{ txInputMode === 'qty' ? (txAmountInput || '0.000000') : (txQtyInput ||
             '0.000000')
-          }}
+            }}
           </div>
         </div>
 
@@ -662,25 +692,25 @@ const tableData = computed(() => {
     <!-- ══════════════════════════════════════════════════════════════════════════
          历史记录弹窗
          ══════════════════════════════════════════════════════════════════════════ -->
-    <el-dialog v-model="historyModalVisible" :title="`交易历史 - ${historyModalTicker}`" width="720px">
+    <el-dialog v-model="historyModalVisible" :title="`交易历史 - ${historyModalTicker}`" width="900px">
       <el-table :data="historyModalTransactions" stripe size="small" v-if="historyModalTransactions.length > 0">
-        <el-table-column label="时间" width="180">
+        <el-table-column label="时间" width="180" align="center">
           <template #default="{ row }">{{ formatTxTime(row.timestamp) }}</template>
         </el-table-column>
-        <el-table-column label="方向" width="80">
+        <el-table-column label="方向" width="80" align="center">
           <template #default="{ row }">
             <el-tag :type="row.side === 'buy' ? 'success' : 'danger'" size="small">
               {{ row.side === 'buy' ? '买入' : '卖出' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="价格 (USDT)" width="120">
+        <el-table-column label="价格 (USDT)" width="120" align="center">
           <template #default="{ row }">{{ formatDisplay(row.price) }}</template>
         </el-table-column>
-        <el-table-column label="数量" width="140">
-          <template #default="{ row }">{{ formatDisplay(row.qty, 8) }}</template>
+        <el-table-column label="数量" width="" align="center">
+          <template #default="{ row }">{{ formatDisplay(row.qty, 6) }}</template>
         </el-table-column>
-        <el-table-column label="金额 (USDT)" width="120">
+        <el-table-column label="金额 (USDT)" width="" align="center">
           <template #default="{ row }">{{ formatDisplay(row.amount) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="120" align="center">
