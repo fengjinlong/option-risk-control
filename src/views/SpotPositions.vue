@@ -194,22 +194,17 @@ function updateDonutChart() {
     series: [
       {
         type: 'pie',
-        radius: '65%',
+        radius: ['38%', '72%'],
         center: ['50%', '50%'],
-        avoidLabelOverlap: true,
+        avoidLabelOverlap: false,
         itemStyle: {
-          borderRadius: 6,
-          borderColor: 'var(--el-bg-color-page)',
-          borderWidth: 2,
+          borderWidth: 0,
         },
         label: { show: false },
+        labelLine: { show: false },
         emphasis: {
-          label: {
-            show: true,
-            fontSize: 14,
-            fontWeight: 'bold',
-            formatter: '{b}: {d}%',
-          },
+          scale: true,
+          scaleSize: 5,
         },
         data: data.map((item, index) => ({
           name: item.name,
@@ -565,14 +560,6 @@ const tableData = computed(() => {
           <div class="stat-label">资产配置</div>
           <div class="allocation-body">
             <div ref="donutRef" class="allocation-chart"></div>
-            <!-- <div v-if="donutData.length === 0" class="allocation-empty">暂无持仓</div>
-            <div v-else class="allocation-legend">
-              <div v-for="(item, index) in donutData" :key="item.name" class="legend-item">
-                <span class="legend-dot" :style="{ background: getChartColor(index) }"></span>
-                <span class="legend-name">{{ item.name }}</span>
-                <span class="legend-pct">{{ item.value.toFixed(2) }}%</span>
-              </div>
-            </div> -->
           </div>
         </div>
       </div>
@@ -813,7 +800,7 @@ const tableData = computed(() => {
 
 .stat-card {
   background: var(--el-fill-color-light);
-  border-radius: 12px;
+  border-radius: 4px;
   padding: 20px;
   display: flex;
   flex: 1;
@@ -872,71 +859,22 @@ const tableData = computed(() => {
 }
 
 .allocation-card {
-  min-height: 140px;
+  display: flex;
+  flex-direction: column;
 }
 
 .allocation-body {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   flex: 1;
 }
 
 .allocation-chart {
-  width: 100px;
-  height: 100px;
-  flex-shrink: 0;
-  margin: 0 auto;
-}
-
-.allocation-empty {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
-}
-
-.allocation-legend {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  overflow: hidden;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-
-.legend-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.legend-name {
-  color: var(--el-text-color-regular);
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.legend-pct {
-  color: var(--el-text-color-secondary);
-  font-weight: 500;
-  flex-shrink: 0;
+  width: 100%;
+  height: 160px;
 }
 
 .ticker-section {
   background: var(--el-fill-color-light);
-  border-radius: 12px;
+  border-radius: 4px;
   padding: 16px;
 }
 
@@ -961,7 +899,7 @@ const tableData = computed(() => {
 
 .ticker-item {
   background: var(--el-bg-color);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 12px;
   display: flex;
   flex-direction: column;
