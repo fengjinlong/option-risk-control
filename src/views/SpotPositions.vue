@@ -444,12 +444,19 @@ async function openHistoryModal(ticker: string) {
   await fetchTransactionHistory(ticker)
 }
 
-function deleteHistoryTx(txId: string | number) {
+async function deleteHistoryTx(txId: string | number) {
   if (historyDeleteConfirmId.value === txId) {
-    deleteTransaction(historyModalTicker.value, String(txId))
-    historyModalTransactions.value = historyModalTransactions.value.filter(tx => tx.id !== txId)
-    historyDeleteConfirmId.value = null
-    ElMessage.success('交易已删除')
+    try {
+      await request.delete(`/api/v1/transactions/${txId}`)
+      historyDeleteConfirmId.value = null
+      ElMessage.success('交易已删除')
+      await fetchTransactionHistory(historyModalTicker.value)
+      await fetchHoldings()
+      await fetchPortfolioSummary()
+    } catch (e) {
+      console.error('deleteTransaction failed', e)
+      ElMessage.error('删除交易失败')
+    }
   } else {
     historyDeleteConfirmId.value = txId
     ElMessage.warning('再次点击确认删除')
