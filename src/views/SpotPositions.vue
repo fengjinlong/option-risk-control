@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import * as echarts from 'echarts'
 import { ElMessage } from 'element-plus'
 import AppHeader from '../components/AppHeader.vue'
+import request from '../utils/request'
 import {
   useSpotPortfolio,
   type TransactionSide,
@@ -17,6 +18,28 @@ import {
   formatDisplay,
   formatNav,
 } from '../composables/useCryptoMath'
+
+// ── portfolio summary API ───────────────────────────────────────────────────
+
+interface PortfolioSummaryResponse {
+  net_asset_value: string;
+  cash_balance: string;
+  total_floating_pnl: string;
+}
+
+const portfolioSummary = ref<PortfolioSummaryResponse | null>(null)
+const summaryLoading = ref(false)
+
+async function fetchPortfolioSummary() {
+  summaryLoading.value = true
+  try {
+    portfolioSummary.value = await request.get<PortfolioSummaryResponse>('/api/v1/portfolio/summary') as unknown as PortfolioSummaryResponse
+  } catch (e) {
+    console.error('fetchPortfolioSummary failed', e)
+  } finally {
+    summaryLoading.value = false
+  }
+}
 
 // ── portfolio state ──────────────────────────────────────────────────────────
 
@@ -35,6 +58,15 @@ const {
   addTicker,
   removeTicker,
 } = useSpotPortfolio()
+
+// ── derived from API ─────────────────────────────────────────────────────────
+
+const pnlPercent = computed(() => {
+  const pnl = toBig(portfolioSummary.value?.total_floating_pnl || '0')
+  const nav = toBig(portfolioSummary.value?.net_asset_value || '0')
+  if (nav.eq(ZERO)) return '0.00%'
+  return pnl.div(nav).times(100).toFixed(2) + '%'
+})
 
 // ── chart refs ────────────────────────────────────────────────────────────────
 
@@ -133,6 +165,7 @@ watch(donutData, () => { updateDonutChart() }, { deep: true })
 
 onMounted(() => {
   initDonutChart()
+  fetchPortfolioSummary()
   window.addEventListener('resize', handleResize)
 })
 
@@ -383,13 +416,27 @@ const tableData = computed(() => {
       <div class="dashboard-section">
         <div class="stat-card">
           <div class="stat-label">净资产 (NAV)</div>
-          <div class="stat-value primary">{{ formatUsd(nav) }}</div>
-          <div class="stat-sub">持仓成本: {{ formatUsd(totalCostBasis) }}</div>
+          <div class="stat-value primary">
+            <span v-if="summaryLoading">—</span>
+            <span v-else>{{ '$' + formatNav(portfolioSummary?.net_asset_value || '0') }}</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">现金余额 (USD)</div>
+          <div class="stat-value primary">
+            <span v-if="summaryLoading">—</span>
+            <span v-else>{{ '$' + formatNav(portfolioSummary?.cash_balance || '0') }}</span>
+          </div>
         </div>
         <div class="stat-card">
           <div class="stat-label">浮动盈亏</div>
-          <div class="stat-value" :class="pnlClass(totalPnL)">{{ formatPnl(totalPnL) }}</div>
-          <div class="stat-sub">{{ formatPnlPercent(totalPnL) }}</div>
+          <div class="stat-value" :class="pnlClass(portfolioSummary?.total_floating_pnl || '0')">
+            <span v-if="summaryLoading">—</span>
+            <span v-else>{{ formatPnl(portfolioSummary?.total_floating_pnl || '0') }}</span>
+          </div>
+          <div class="stat-sub" v-if="!summaryLoading">
+            <span v-if="portfolioSummary">{{ formatPnlPercent(pnlPercent) }}</span>
+          </div>
         </div>
         <div class="stat-card">
           <div class="stat-label">资产配置</div>
@@ -405,7 +452,9 @@ const tableData = computed(() => {
         <div class="section-header">
           <span class="section-title">实时价格</span>
           <el-button size="small" type="primary" @click="addTokenModalVisible = true">
-            <el-icon><Plus /></el-icon>添加标的
+            <el-icon>
+              <Plus />
+            </el-icon>添加标的
           </el-button>
         </div>
         <div class="ticker-grid">
@@ -423,47 +472,48 @@ const tableData = computed(() => {
         <div class="section-header">
           <span class="section-title">持仓明细</span>
         </div>
-        <div class="table-wrapper">
-          <table class="holdings-table">
-            <thead>
-              <tr>
-                <th class="col-asset">标的</th>
-                <th class="col-qty">数量</th>
-                <th class="col-cost">均价</th>
-                <th class="col-price">现价</th>
-                <th class="col-value">市值</th>
-                <th class="col-pnl">浮动盈亏</th>
-                <th class="col-actions">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in tableData" :key="row.ticker">
-                <td class="col-asset"><span class="asset-name">{{ row.ticker }}</span></td>
-                <td class="col-qty"><span class="mono">{{ formatQty(row.qty) }}</span></td>
-                <td class="col-cost"><span class="mono">${{ formatPrice(row.avgCost) }}</span></td>
-                <td class="col-price">
-                  <span class="mono" :class="priceChangeClass(livePrices[row.ticker]?.change24h || 0)">
-                    ${{ formatPrice(row.currentPrice) }}
-                  </span>
-                </td>
-                <td class="col-value"><span class="mono">{{ formatUsd(row.currentValue) }}</span></td>
-                <td class="col-pnl">
-                  <div class="pnl-cell" :class="pnlClass(row.pnl)">
-                    <span class="pnl-value">{{ formatPnl(row.pnl) }}</span>
-                    <span class="pnl-pct">{{ formatPnlPercent(row.pnlPct) }}</span>
-                  </div>
-                </td>
-                <td class="col-actions">
-                  <div class="action-buttons">
-                    <el-button type="primary" size="small" @click="openTxModal(row.ticker)">记录</el-button>
-                    <el-button type="info" size="small" plain @click="openHistoryModal(row.ticker)">历史 ({{ row.txCount }})</el-button>
-                    <el-button type="danger" size="small" plain @click="openDeleteModal(row.ticker)">删除</el-button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <el-table :data="tableData" size="small" table-layout="fixed">
+          <el-table-column prop="ticker" label="标的" width="100" align="center">
+            <template #default="{ row }">
+              <el-tag type="primary" effect="dark">{{ row.ticker }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="数量" width="150" align="center">
+            <template #default="{ row }">{{ formatQty(row.qty) }}</template>
+          </el-table-column>
+          <el-table-column label="均价" width="150" align="center">
+            <template #default="{ row }">${{ formatPrice(row.avgCost) }}</template>
+          </el-table-column>
+          <el-table-column label="现价" width="150" align="center">
+            <template #default="{ row }">
+              <span :class="priceChangeClass(livePrices[row.ticker]?.change24h || 0)">
+                ${{ formatPrice(row.currentPrice) }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="市值" min-width="140" align="center">
+            <template #default="{ row }">{{ formatUsd(row.currentValue) }}</template>
+          </el-table-column>
+          <el-table-column label="浮动盈亏" min-width="160" align="center">
+            <template #default="{ row }">
+              <div :class="['pnl-cell', pnlClass(row.pnl)]">
+                <el-text size="small" :type="row.pnl.gt(ZERO) ? 'success' : row.pnl.lt(ZERO) ? 'danger' : 'info'">
+                  {{ formatPnlPercent(row.pnlPct) }}
+                </el-text>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="240" align="center" fixed="right">
+            <template #default="{ row }">
+              <el-space size="small">
+                <el-button type="primary" size="small" @click="openTxModal(row.ticker)">记录</el-button>
+                <el-button type="info" size="small" plain @click="openHistoryModal(row.ticker)">历史 ({{ row.txCount
+                }})</el-button>
+                <el-button type="danger" size="small" plain @click="openDeleteModal(row.ticker)">删除</el-button>
+              </el-space>
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
     </div>
 
@@ -508,11 +558,15 @@ const tableData = computed(() => {
 
         <div class="form-row calculated">
           <label>{{ txInputMode === 'qty' ? '金额 (USDT)' : `数量 (${txModalTicker})` }}</label>
-          <div class="calc-value">{{ txInputMode === 'qty' ? (txAmountInput || '0.0000') : (txQtyInput || '0.00000000') }}</div>
+          <div class="calc-value">{{ txInputMode === 'qty' ? (txAmountInput || '0.0000') : (txQtyInput || '0.00000000')
+          }}
+          </div>
         </div>
 
         <div v-if="txError" class="error-msg">
-          <el-icon><WarningFilled /></el-icon> {{ txError }}
+          <el-icon>
+            <WarningFilled />
+          </el-icon> {{ txError }}
         </div>
       </div>
       <template #footer>
@@ -547,7 +601,8 @@ const tableData = computed(() => {
         </el-table-column>
         <el-table-column label="操作" width="120" align="center">
           <template #default="{ row }">
-            <el-button :type="historyDeleteConfirmId === row.id ? 'danger' : 'info'" :danger="historyDeleteConfirmId === row.id" size="small" @click="deleteHistoryTx(row.id)">
+            <el-button :type="historyDeleteConfirmId === row.id ? 'danger' : 'info'"
+              :danger="historyDeleteConfirmId === row.id" size="small" @click="deleteHistoryTx(row.id)">
               {{ historyDeleteConfirmId === row.id ? '确认删除' : '删除' }}
             </el-button>
           </template>
@@ -593,76 +648,314 @@ const tableData = computed(() => {
 </template>
 
 <style scoped>
-.workspace { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--el-bg-color); }
-.spot-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.workspace {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--el-bg-color);
+}
 
-.dashboard-section { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-.stat-card { background: var(--el-fill-color-light); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
-.stat-label { font-size: 13px; color: var(--el-text-color-secondary); font-weight: 500; }
-.stat-value { font-size: 28px; font-weight: 700; font-family: var(--el-font-family); color: var(--el-text-color-primary); }
-.stat-value.primary { color: var(--el-color-primary); }
-.stat-value.pnl-positive { color: var(--el-color-success); }
-.stat-value.pnl-negative { color: var(--el-color-danger); }
-.stat-sub { font-size: 12px; color: var(--el-text-color-secondary); }
+.spot-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 
-.donut-wrapper { position: relative; height: 140px; }
-.donut-chart { width: 100%; height: 100%; }
-.donut-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--el-text-color-secondary); font-size: 13px; }
+.dashboard-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  display: flex;
+}
 
-.ticker-section { background: var(--el-fill-color-light); border-radius: 12px; padding: 16px; }
-.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.section-title { font-size: 15px; font-weight: 600; color: var(--el-text-color-primary); }
-.ticker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
-.ticker-item { background: var(--el-bg-color); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--el-border-color-light); transition: border-color 0.2s; cursor: pointer; }
-.ticker-item:hover { border-color: var(--el-border-color); }
-.ticker-symbol { font-weight: 600; font-size: 13px; color: var(--el-text-color-primary); }
-.ticker-price { font-size: 15px; font-weight: 600; font-family: var(--el-font-family); color: var(--el-text-color-primary); }
-.ticker-change { font-size: 12px; color: var(--el-text-color-secondary); }
-.ticker-item.price-up .ticker-change, .ticker-item.price-up .ticker-price { color: var(--el-color-success); }
-.ticker-item.price-down .ticker-change, .ticker-item.price-down .ticker-price { color: var(--el-color-danger); }
+.stat-card {
+  background: var(--el-fill-color-light);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+}
 
-.table-section { background: var(--el-fill-color-light); border-radius: 12px; padding: 16px; }
-.table-wrapper { overflow-x: auto; }
-.holdings-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.holdings-table th, .holdings-table td { padding: 12px 8px; text-align: left; border-bottom: 1px solid var(--el-border-color-lighter); }
-.holdings-table th { font-weight: 600; color: var(--el-text-color-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-.holdings-table tbody tr:hover { background: var(--el-fill-color-lighter); }
-.asset-name { font-weight: 700; color: var(--el-color-primary); }
-.mono { font-family: var(--el-font-family); }
-.col-qty, .col-cost, .col-price, .col-value, .col-pnl { text-align: right; }
-.pnl-cell { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-.pnl-value { font-weight: 600; font-family: var(--el-font-family); }
-.pnl-pct { font-size: 11px; opacity: 0.8; }
-.pnl-positive .pnl-value, .pnl-positive.pnl-value { color: var(--el-color-success); }
-.pnl-negative .pnl-value, .pnl-negative.pnl-value { color: var(--el-color-danger); }
-.pnl-cell.pnl-positive .pnl-pct { color: var(--el-color-success); }
-.pnl-cell.pnl-negative .pnl-pct { color: var(--el-color-danger); }
-.price-up { color: var(--el-color-success) !important; }
-.price-down { color: var(--el-color-danger) !important; }
-.col-actions { text-align: center; }
-.action-buttons { display: flex; gap: 4px; justify-content: center; }
+.stat-label {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: var(--el-font-family);
+  color: var(--el-text-color-primary);
+}
+
+.stat-value.primary {
+  color: var(--el-color-primary);
+}
+
+.stat-value.pnl-positive {
+  color: var(--el-color-success);
+}
+
+.stat-value.pnl-negative {
+  color: var(--el-color-danger);
+}
+
+.stat-sub {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.donut-wrapper {
+  position: relative;
+  height: 140px;
+}
+
+.donut-chart {
+  width: 100%;
+  height: 100%;
+}
+
+.donut-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.ticker-section {
+  background: var(--el-fill-color-light);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.ticker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.ticker-item {
+  background: var(--el-bg-color);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--el-border-color-light);
+  transition: border-color 0.2s;
+  cursor: pointer;
+}
+
+.ticker-item:hover {
+  border-color: var(--el-border-color);
+}
+
+.ticker-symbol {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--el-text-color-primary);
+}
+
+.ticker-price {
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--el-font-family);
+  color: var(--el-text-color-primary);
+}
+
+.ticker-change {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.ticker-item.price-up .ticker-change,
+.ticker-item.price-up .ticker-price {
+  color: var(--el-color-success);
+}
+
+.ticker-item.price-down .ticker-change,
+.ticker-item.price-down .ticker-price {
+  color: var(--el-color-danger);
+}
+
+.table-section {
+  background: var(--el-fill-color-light);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.pnl-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.pnl-positive {
+  color: var(--el-color-success) !important;
+}
+
+.pnl-negative {
+  color: var(--el-color-danger) !important;
+}
+
+.price-up {
+  color: var(--el-color-success) !important;
+}
+
+.price-down {
+  color: var(--el-color-danger) !important;
+}
 
 /* 弹窗表单 */
-.tx-form { display: flex; flex-direction: column; gap: 16px; }
-.form-row { display: flex; flex-direction: column; gap: 6px; }
-.form-row > label { font-size: 13px; font-weight: 500; color: var(--el-text-color-regular); display: flex; align-items: center; gap: 8px; }
-.hint { font-weight: 400; color: var(--el-text-color-secondary); font-size: 12px; }
-.price-row { display: flex; gap: 8px; }
-.price-row .el-input { flex: 1; }
-.calculated { padding: 12px; background: var(--el-fill-color-light); border-radius: 8px; }
-.calc-value { font-size: 18px; font-weight: 600; color: var(--el-color-primary); font-family: var(--el-font-family); }
-.error-msg { display: flex; align-items: center; gap: 6px; padding: 10px 12px; background: var(--el-color-danger-light-9); color: var(--el-color-danger); border-radius: 6px; font-size: 13px; }
+.tx-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 
-.add-token-form { display: flex; flex-direction: column; gap: 16px; }
-.token-list { max-height: 300px; overflow-y: auto; border: 1px solid var(--el-border-color); border-radius: 8px; }
-.token-item { padding: 10px 16px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: background 0.2s; }
-.token-item:hover { background: var(--el-fill-color-light); }
-.token-item:not(:last-child) { border-bottom: 1px solid var(--el-border-color-light); }
-.token-symbol { font-weight: 600; font-size: 14px; }
-.empty-result { padding: 24px; text-align: center; color: var(--el-text-color-secondary); }
-.empty-result p { margin: 0; font-size: 13px; }
-.empty-state { padding: 48px; text-align: center; color: var(--el-text-color-secondary); }
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
-@media (max-width: 1024px) { .dashboard-section { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 768px) { .dashboard-section { grid-template-columns: 1fr; } .ticker-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); } }
+.form-row>label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--el-text-color-regular);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hint {
+  font-weight: 400;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.price-row {
+  display: flex;
+  gap: 8px;
+}
+
+.price-row .el-input {
+  flex: 1;
+}
+
+.calculated {
+  padding: 12px;
+  background: var(--el-fill-color-light);
+  border-radius: 8px;
+}
+
+.calc-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--el-color-primary);
+  font-family: var(--el-font-family);
+}
+
+.error-msg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--el-color-danger-light-9);
+  color: var(--el-color-danger);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.add-token-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.token-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--el-border-color);
+  border-radius: 8px;
+}
+
+.token-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background 0.2s;
+}
+
+.token-item:hover {
+  background: var(--el-fill-color-light);
+}
+
+.token-item:not(:last-child) {
+  border-bottom: 1px solid var(--el-border-color-light);
+}
+
+.token-symbol {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.empty-result {
+  padding: 24px;
+  text-align: center;
+  color: var(--el-text-color-secondary);
+}
+
+.empty-result p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.empty-state {
+  padding: 48px;
+  text-align: center;
+  color: var(--el-text-color-secondary);
+}
+
+@media (max-width: 1024px) {
+  .dashboard-section {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-section {
+    grid-template-columns: 1fr;
+  }
+
+  .ticker-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+}
 </style>
