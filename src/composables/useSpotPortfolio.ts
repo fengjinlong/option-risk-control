@@ -53,6 +53,16 @@ export function initFromWatchlist(items: { ticker: string; live_price: string }[
   }
 }
 
+export function initHoldings(items: { ticker: string; current_quantity: string; average_cost: string }[]): void {
+  for (const item of items) {
+    const h = getHolding(item.ticker)
+    if (h) {
+      h.qty = item.current_quantity
+      h.avgCost = item.average_cost
+    }
+  }
+}
+
 export function setLivePrice(ticker: string, live_price: string, change24h: number = 0): void {
   state.livePrices[ticker] = { ticker, price: live_price, change24h }
 }
@@ -264,5 +274,6 @@ export function useSpotPortfolio() {
     addTicker,
     removeTicker,
     setLivePrice,
+    initHoldings,
   }
 }

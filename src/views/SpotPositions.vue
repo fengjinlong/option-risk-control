@@ -7,6 +7,7 @@ import request from '../utils/request'
 import {
   useSpotPortfolio,
   initFromWatchlist,
+  initHoldings,
   setLivePrice,
   type TransactionSide,
 } from '../composables/useSpotPortfolio'
@@ -38,10 +39,26 @@ async function fetchWatchlist() {
     for (const item of items) {
       setLivePrice(item.ticker, item.live_price)
     }
+    await fetchHoldings()
   } catch (e) {
     console.error('fetchWatchlist failed', e)
   } finally {
     watchlistLoading.value = false
+  }
+}
+
+interface HoldingsItem {
+  ticker: string
+  current_quantity: string
+  average_cost: string
+}
+
+async function fetchHoldings() {
+  try {
+    const items = await request.get<HoldingsItem[]>('/api/v1/portfolio/holdings') as unknown as HoldingsItem[]
+    initHoldings(items)
+  } catch (e) {
+    console.error('fetchHoldings failed', e)
   }
 }
 
@@ -513,7 +530,7 @@ const tableData = computed(() => {
             <!-- <div class="ticker-change">{{ formatPriceChange(livePrices[item.ticker]?.change24h || 0) }}</div> -->
             <button class="ticker-delete" @click.stop="deleteWatchlistTicker(item.ticker)" title="删除">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <path d="M2 2L10 10M10 2L2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M2 2L10 10M10 2L2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
               </svg>
             </button>
           </div>
@@ -537,16 +554,8 @@ const tableData = computed(() => {
           <el-table-column label="均价" width="150" align="center">
             <template #default="{ row }">${{ formatPrice(row.avgCost) }}</template>
           </el-table-column>
-          <el-table-column label="现价" width="150" align="center">
-            <template #default="{ row }">
-              <span :class="priceChangeClass(livePrices[row.ticker]?.change24h || 0)">
-                ${{ formatPrice(row.currentPrice) }}
-              </span>
-            </template>
-          </el-table-column>
-          <el-table-column label="市值" min-width="140" align="center">
-            <template #default="{ row }">{{ formatUsd(row.currentValue) }}</template>
-          </el-table-column>
+
+
           <el-table-column label="浮动盈亏" min-width="160" align="center">
             <template #default="{ row }">
               <div :class="['pnl-cell', pnlClass(row.pnl)]">
