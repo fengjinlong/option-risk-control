@@ -53,6 +53,13 @@ interface HoldingsItem {
   average_cost: string
 }
 
+interface CreateTransactionRequest {
+  ticker: string
+  side: 'BUY' | 'SELL'
+  price: string
+  quantity: string
+}
+
 async function fetchHoldings() {
   try {
     const items = await request.get<HoldingsItem[]>('/api/v1/portfolio/holdings') as unknown as HoldingsItem[]
@@ -328,7 +335,7 @@ function syncQty() {
   }
   const p = toBig(txPriceInput.value)
   if (p.eq(ZERO)) { txQtyInput.value = ''; return }
-  txQtyInput.value = formatDisplay(div(txAmountInput.value, txPriceInput.value))
+  txQtyInput.value = formatDisplay(div(txAmountInput.value, txPriceInput.value), 6)
 }
 
 watch(txQtyInput, () => { if (txInputMode.value === 'qty') syncAmount() })
@@ -364,14 +371,29 @@ function validateTx(): boolean {
   return true
 }
 
-function confirmTx() {
+async function confirmTx() {
   if (!validateTx()) return
   if (txInputMode.value === 'qty') syncAmount()
   else syncQty()
-  addTransaction(txModalTicker.value, txSide.value, txPriceInput.value,
-    txQtyInput.value, txAmountInput.value)
-  txModalVisible.value = false
-  ElMessage.success(`${txSide.value === 'buy' ? '买入' : '卖出'}记录成功`)
+
+  const payload: CreateTransactionRequest = {
+    ticker: txModalTicker.value,
+    side: txSide.value === 'buy' ? 'BUY' : 'SELL',
+    price: txPriceInput.value,
+    quantity: txQtyInput.value,
+  }
+
+  try {
+    await request.post('/api/v1/transactions', payload)
+    addTransaction(txModalTicker.value, txSide.value, txPriceInput.value, txQtyInput.value, txAmountInput.value)
+    txModalVisible.value = false
+    ElMessage.success(`${txSide.value === 'buy' ? '买入' : '卖出'}记录成功`)
+    await fetchHoldings()
+    await fetchPortfolioSummary()
+  } catch (e) {
+    console.error('createTransaction failed', e)
+    ElMessage.error('保存交易失败')
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -570,8 +592,7 @@ const tableData = computed(() => {
               <el-space size="small">
                 <el-button type="primary" size="small" @click="openTxModal(row.ticker)">记录</el-button>
                 <el-button type="info" size="small" plain @click="openHistoryModal(row.ticker)">历史 ({{ row.txCount
-                }})</el-button>
-                <el-button type="danger" size="small" plain @click="openDeleteModal(row.ticker)">删除</el-button>
+                  }})</el-button>
               </el-space>
             </template>
           </el-table-column>
@@ -596,7 +617,7 @@ const tableData = computed(() => {
           <label>价格 (USDT)</label>
           <div class="price-row">
             <el-input v-model="txPriceInput" type="number" placeholder="0.00" :precision="8" step="0.01" />
-            <el-button size="small" @click="useLivePrice" type="primary" plain>使用现价</el-button>
+            <!-- <el-button size="small" @click="useLivePrice" type="primary" plain>使用现价</el-button> -->
           </div>
         </div>
 
@@ -610,7 +631,7 @@ const tableData = computed(() => {
 
         <div class="form-row" v-if="txInputMode === 'qty'">
           <label>数量 ({{ txModalTicker }}) <span class="hint">当前: {{ txModalCurrentQty }}</span></label>
-          <el-input v-model="txQtyInput" type="number" placeholder="0.00000000" :precision="8" step="0.00000001" />
+          <el-input v-model="txQtyInput" type="number" placeholder="0.000000" :precision="6" step="0.000001" />
         </div>
 
         <div class="form-row" v-if="txInputMode === 'amount'">
@@ -620,7 +641,8 @@ const tableData = computed(() => {
 
         <div class="form-row calculated">
           <label>{{ txInputMode === 'qty' ? '金额 (USDT)' : `数量 (${txModalTicker})` }}</label>
-          <div class="calc-value">{{ txInputMode === 'qty' ? (txAmountInput || '0.0000') : (txQtyInput || '0.00000000')
+          <div class="calc-value">{{ txInputMode === 'qty' ? (txAmountInput || '0.000000') : (txQtyInput ||
+            '0.000000')
           }}
           </div>
         </div>
