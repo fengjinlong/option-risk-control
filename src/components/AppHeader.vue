@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, reactive, computed } from 'vue'
+import { onMounted, reactive, ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import request from '../utils/request'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const route = useRoute()
@@ -15,7 +16,6 @@ const navItems = [
   { path: '/iv-alert', label: '开仓IV预警' },
   { path: '/position-risk', label: '持仓风控评估' },
   { path: '/greed-fear', label: '贪婪恐慌' },
-  // 现货持仓
   { path: '/spot-positions', label: '现货持仓' },
 ]
 
@@ -36,6 +36,26 @@ const volRadar = reactive({
   ETH: { iv_percentile_1y: 0 },
 })
 
+const symbolModalVisible = ref(false)
+const selectedSymbol = ref('BTC')
+const savingSymbol = ref(false)
+
+function openSymbolModal() {
+  fetchCurrentSymbol()
+  symbolModalVisible.value = true
+}
+
+async function fetchCurrentSymbol() {
+  try {
+    const res: any = await request.get('/api/v1/config/symbol')
+    if (res?.current_symbol) {
+      selectedSymbol.value = res.current_symbol
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
 onMounted(async () => {
   try {
     const priceRes: any = await request.get('/api/v1/market/prices')
@@ -47,7 +67,6 @@ onMounted(async () => {
       prices.CRV = priceRes.data.CRV ?? 0
     }
     const volRes: any = await request.get('/api/v1/market/global-vol-radar')
-    console.log(volRes)
     if (volRes?.data.BTC) {
       volRadar.BTC.iv_percentile_1y = volRes.data.BTC.iv_percentile_1y ?? 0
     }
@@ -62,6 +81,19 @@ onMounted(async () => {
 function go(path: string) {
   router.push(path)
 }
+
+async function saveSymbol() {
+  savingSymbol.value = true
+  try {
+    await request.patch('/api/v1/config/symbol', { symbol: selectedSymbol.value })
+    symbolModalVisible.value = false
+    ElMessage.success(`已切换为 ${selectedSymbol.value}`)
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.message || '切换失败')
+  } finally {
+    savingSymbol.value = false
+  }
+}
 </script>
 
 <template>
@@ -73,6 +105,7 @@ function go(path: string) {
     <div class="header-center">
       <el-button v-for="item in navItems" :key="item.path" :type="isActive(item.path) ? 'success' : 'primary'"
         size="small" @click="go(item.path)">{{ item.label }}</el-button>
+      <el-button type="primary" size="small" @click="openSymbolModal">切换标的</el-button>
     </div>
     <div class="header-right">
       <el-tag type="success" size="small">BTC IV%: {{ volRadar.BTC.iv_percentile_1y || '--' }}</el-tag>
@@ -85,6 +118,20 @@ function go(path: string) {
       <!-- <el-tag type="success" size="small">● LIVE</el-tag> -->
     </div>
   </header>
+
+  <el-dialog v-model="symbolModalVisible" title="切换标的" width="360px" :close-on-click-modal="false">
+    <div class="symbol-picker">
+      <el-radio-group v-model="selectedSymbol" style="display: flex; flex-direction: column; gap: 12px;">
+        <el-radio value="BTC">BTC</el-radio>
+        <el-radio value="ETH">ETH</el-radio>
+        <el-radio value="SOL">SOL</el-radio>
+      </el-radio-group>
+    </div>
+    <template #footer>
+      <el-button @click="symbolModalVisible = false">取消</el-button>
+      <el-button type="primary" :loading="savingSymbol" @click="saveSymbol">保存</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped>
@@ -126,5 +173,15 @@ function go(path: string) {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.symbol-picker {
+  padding: 8px 0;
+}
+
+.symbol-picker .el-radio {
+  height: 32px;
+  line-height: 32px;
+  margin: 0;
 }
 </style>
