@@ -106,156 +106,170 @@ const spMarginOfSafety = computed(() => {
     <AppHeader />
 
     <div class="calc-body">
-      <div class="page-title">波动率远期定价计算器</div>
+      <div class="calc-grid">
 
-      <!-- 输入区 -->
-      <div class="section">
-        <div class="row">
-          <div class="field">
-            <label>短期时间（天）</label>
-            <el-input-number v-model="shortDays" :min="1" size="small" />
-          </div>
-          <div class="field">
-            <label>短期 ATM IV（%）</label>
-            <el-input-number v-model="shortIV" :min="0" :precision="2" size="small" />
-          </div>
-          <div class="field">
-            <label>长期时间（天）</label>
-            <el-input-number v-model="longDays" :min="1" size="small" />
-          </div>
-          <div class="field">
-            <label>长期 ATM IV（%）</label>
-            <el-input-number v-model="longIV" :min="0" :precision="2" size="small" />
-          </div>
-        </div>
-        <el-button type="primary" size="small" @click="calc">计算 FWD IV</el-button>
-      </div>
+        <!-- 左侧：波动率远期定价计算器 -->
+        <div class="calc-card">
+          <div class="page-title">波动率远期定价计算器</div>
 
-      <!-- 结果区 -->
-      <div v-if="showResult" class="section result">
-        <div class="result-title">计算结果</div>
+          <!-- 输入区 -->
+          <div class="section">
+            <div class="row">
+              <div class="field">
+                <label>短期时间（天）</label>
+                <el-input-number v-model="shortDays" :min="1" size="small" />
+              </div>
+              <div class="field">
+                <label>短期 ATM IV（%）</label>
+                <el-input-number v-model="shortIV" :min="0" :precision="2" size="small" />
+              </div>
+              <div class="field">
+                <label>长期时间（天）</label>
+                <el-input-number v-model="longDays" :min="1" size="small" />
+              </div>
+              <div class="field">
+                <label>长期 ATM IV（%）</label>
+                <el-input-number v-model="longIV" :min="0" :precision="2" size="small" />
+              </div>
+            </div>
+            <el-button type="primary" size="small" @click="calc">计算 FWD IV</el-button>
+          </div>
 
-        <div v-if="fwdIV === null" class="alert">
-          期限结构严重倒挂，远期方差为负，无法提取实数远期波动率
-        </div>
+          <!-- 结果区 -->
+          <div v-if="showResult" class="section result">
+            <div class="result-title">计算结果</div>
 
-        <template v-else>
-          <!-- 数据解析 + 计算过程 + 对比诊断 并排 -->
-          <div class="result-row">
-            <div class="result-col">
-              <div class="block-label">📈 数据解析</div>
-              <div class="data-row">短期年化时间 <strong>{{ shortT.toFixed(4) }} 年</strong></div>
-              <div class="data-row">长期年化时间 <strong>{{ longT.toFixed(4) }} 年</strong></div>
-              <div class="data-row">短期 ATM IV <strong>{{ shortIV }}%</strong></div>
-              <div class="data-row">长期 ATM IV <strong>{{ longIV }}%</strong></div>
+            <div v-if="fwdIV === null" class="alert">
+              期限结构严重倒挂，远期方差为负，无法提取实数远期波动率
             </div>
 
-            <div class="result-col">
-              <div class="block-label">🧮 计算过程</div>
-              <div class="formula-block">
-                <div class="formula-step">= sqrt( ({{ (longIV / 100).toFixed(4) }}² × {{ longT.toFixed(4) }} − {{
-                  (shortIV / 100).toFixed(4) }}² × {{ shortT.toFixed(4) }}) / {{ (longT - shortT).toFixed(4) }} )</div>
-                <div class="formula-final">= {{ fwdIV.toFixed(2) }}%</div>
+            <template v-else>
+              <div class="result-row">
+                <div class="result-col">
+                  <div class="block-label">📈 数据解析</div>
+                  <div class="data-row">短期年化时间 <strong>{{ shortT.toFixed(4) }} 年</strong></div>
+                  <div class="data-row">长期年化时间 <strong>{{ longT.toFixed(4) }} 年</strong></div>
+                  <div class="data-row">短期 ATM IV <strong>{{ shortIV }}%</strong></div>
+                  <div class="data-row">长期 ATM IV <strong>{{ longIV }}%</strong></div>
+                </div>
+
+                <div class="result-col">
+                  <div class="block-label">🧮 计算过程</div>
+                  <div class="formula-block">
+                    <div class="formula-step">= sqrt( ({{ (longIV / 100).toFixed(4) }}² × {{ longT.toFixed(4) }} − {{
+                      (shortIV / 100).toFixed(4) }}² × {{ shortT.toFixed(4) }}) / {{ (longT - shortT).toFixed(4) }} )
+                    </div>
+                    <div class="formula-final">= {{ fwdIV.toFixed(2) }}%</div>
+                  </div>
+                </div>
+
+                <div class="result-col">
+                  <div class="block-label">📊 对比诊断</div>
+                  <div class="data-row">FWD_IV / 长期 ATM IV <strong>{{ ratio!.toFixed(2) }} 倍</strong></div>
+                  <div class="data-row">&lt; 0.7 看跌 &nbsp;|&nbsp; 0.7~1.3 常态 &nbsp;|&nbsp; &gt; 1.3 看涨</div>
+                </div>
+              </div>
+
+              <div class="result-block conclusion">
+                <div class="block-label">🚨 最终交易结论</div>
+                <div class="block-content">
+                  <el-tag v-for="(label, i) in diag.labels" :key="label" :type="diag.colors[i]" size="small"
+                    class="conclusion-tag">
+                    {{ label }}
+                  </el-tag>
+                  <p class="conclusion-desc">{{ diagDesc }}</p>
+                  <p v-if="arbDesc" class="conclusion-desc arb">{{ arbDesc }}</p>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- 右侧：Sell Put 年化收益率计算器 -->
+        <div class="calc-card">
+          <div class="page-title">Sell Put 年化收益率计算器</div>
+
+          <div class="section">
+            <div class="row">
+              <div class="field">
+                <label>每股权利金（Premium）</label>
+                <el-input-number v-model="spPremium" :min="0" :precision="4" size="small" />
+              </div>
+              <div class="field">
+                <label>行权价 / 接货本金（Strike Price）</label>
+                <el-input-number v-model="spStrike" :min="0" :precision="2" size="small" />
+              </div>
+              <div class="field">
+                <label>期权剩余天数（Days to Maturity）</label>
+                <el-input-number v-model="spDays" :min="1" size="small" />
+              </div>
+              <div class="field">
+                <label>当前股价（可选）</label>
+                <el-input-number v-model="spCurrentPrice" :min="0" :precision="2" size="small" placeholder="可选" />
+              </div>
+            </div>
+            <el-button type="primary" size="small" @click="spResultVisible = true">计算收益</el-button>
+          </div>
+
+          <!-- 结果 -->
+          <div v-if="spResultVisible" class="section result">
+            <div class="result-title">计算结果</div>
+            <div class="result-row">
+              <div class="result-col">
+                <div class="block-label">📈 核心指标</div>
+                <div class="data-row">单期收益率 <strong>{{ spPeriodYield.toFixed(2) }}%</strong></div>
+                <div class="data-row">年化收益率 <strong class="highlight">{{ spAnnualYield.toFixed(2) }}%</strong></div>
+                <div class="data-row">实际持仓成本 <strong>{{ spNetCost.toFixed(2) }}</strong></div>
+                <div class="data-row" v-if="spMarginOfSafety !== null">
+                  资金安全垫 <strong :class="spMarginOfSafety >= 0 ? 'safe' : 'danger'">{{ spMarginOfSafety.toFixed(2)
+                    }}%</strong>
+                </div>
+                <div class="data-row" v-else>资金安全垫 <span class="dim">—（请填写当前股价）</span></div>
+              </div>
+
+              <div class="result-col">
+                <div class="block-label">🧮 计算过程</div>
+                <div class="formula-block">
+                  <div class="formula-step">单期收益率 = {{ spPremium }} / {{ spStrike }} = {{ (spPremium /
+                    spStrike).toFixed(4) }}
+                  </div>
+                  <div class="formula-final">{{ spPeriodYield.toFixed(4) }}%</div>
+                </div>
+                <div class="formula-block" style="margin-top: 8px;">
+                  <div class="formula-step">年化收益率 = {{ spPeriodYield.toFixed(4) }}% × (365 / {{ spDays }})</div>
+                  <div class="formula-final highlight">{{ spAnnualYield.toFixed(4) }}%</div>
+                </div>
+                <div class="formula-block" style="margin-top: 8px;">
+                  <div class="formula-step">实际持仓成本 = {{ spStrike }} − {{ spPremium }} = {{ (spStrike -
+                    spPremium).toFixed(4) }}
+                  </div>
+                  <div class="formula-final">{{ spNetCost.toFixed(4) }}</div>
+                </div>
               </div>
             </div>
 
-            <div class="result-col">
-              <div class="block-label">📊 对比诊断</div>
-              <div class="data-row">FWD_IV / 长期 ATM IV <strong>{{ ratio!.toFixed(2) }} 倍</strong></div>
-              <div class="data-row">&lt; 0.7 看跌 &nbsp;|&nbsp; 0.7~1.3 常态 &nbsp;|&nbsp; &gt; 1.3 看涨</div>
+            <div class="result-block conclusion">
+              <div class="block-label">📊 交易信号</div>
+              <div class="block-content">
+                <el-tag :type="spAnnualYield >= 20 ? 'success' : 'info'" size="small">
+                  年化 {{ spAnnualYield.toFixed(2) }}%
+                </el-tag>
+                <p class="conclusion-desc">
+                  若被行权接货，实际持仓成本为 <strong>{{ spNetCost.toFixed(2) }}</strong>，相较行权价节省了 <strong>{{ spPremium.toFixed(4)
+                    }}</strong> / 股。
+                  <span v-if="spMarginOfSafety !== null">
+                    当前股价 <strong>{{ spCurrentPrice }}</strong> 较持仓成本高出 <strong>{{ spMarginOfSafety.toFixed(2)
+                      }}%</strong>，
+                    <span :class="spMarginOfSafety >= 0 ? 'safe' : 'danger'">
+                      {{ spMarginOfSafety >= 0 ? '浮盈安全垫充足' : '已处于浮亏状态' }}
+                    </span>。
+                  </span>
+                </p>
+              </div>
             </div>
           </div>
-
-          <!-- 最终结论 -->
-          <div class="result-block conclusion">
-            <div class="block-label">🚨 最终交易结论</div>
-            <div class="block-content">
-              <el-tag v-for="(label, i) in diag.labels" :key="label" :type="diag.colors[i]" size="small"
-                class="conclusion-tag">
-                {{ label }}
-              </el-tag>
-              <p class="conclusion-desc">{{ diagDesc }}</p>
-              <p v-if="arbDesc" class="conclusion-desc arb">{{ arbDesc }}</p>
-            </div>
-          </div>
-        </template>
-      </div>
-    </div>
-
-    <!-- Sell Put 年化收益率计算器 -->
-    <div class="page-title" style="margin-top: 24px;">Sell Put 年化收益率计算器</div>
-
-    <div class="section">
-      <div class="row">
-        <div class="field">
-          <label>每股权利金（Premium）</label>
-          <el-input-number v-model="spPremium" :min="0" :precision="4" size="small" />
-        </div>
-        <div class="field">
-          <label>行权价 / 接货本金（Strike Price）</label>
-          <el-input-number v-model="spStrike" :min="0" :precision="2" size="small" />
-        </div>
-        <div class="field">
-          <label>期权剩余天数（Days to Maturity）</label>
-          <el-input-number v-model="spDays" :min="1" size="small" />
-        </div>
-        <div class="field">
-          <label>当前股价（可选）</label>
-          <el-input-number v-model="spCurrentPrice" :min="0" :precision="2" size="small" placeholder="可选" />
-        </div>
-      </div>
-      <el-button type="primary" size="small" @click="spResultVisible = true">计算收益</el-button>
-    </div>
-
-    <!-- Sell Put 结果 -->
-    <div v-if="spResultVisible" class="section result">
-      <div class="result-title">计算结果</div>
-      <div class="result-row">
-        <div class="result-col">
-          <div class="block-label">📈 核心指标</div>
-          <div class="data-row">单期收益率 <strong>{{ spPeriodYield.toFixed(2) }}%</strong></div>
-          <div class="data-row">年化收益率 <strong class="highlight">{{ spAnnualYield.toFixed(2) }}%</strong></div>
-          <div class="data-row">实际持仓成本 <strong>{{ spNetCost.toFixed(2) }}</strong></div>
-          <div class="data-row" v-if="spMarginOfSafety !== null">
-            资金安全垫 <strong :class="spMarginOfSafety >= 0 ? 'safe' : 'danger'">{{ spMarginOfSafety.toFixed(2) }}%</strong>
-          </div>
-          <div class="data-row" v-else>资金安全垫 <span class="dim">—（请填写当前股价）</span></div>
         </div>
 
-        <div class="result-col">
-          <div class="block-label">🧮 计算过程</div>
-          <div class="formula-block">
-            <div class="formula-step">单期收益率 = {{ spPremium }} / {{ spStrike }} = {{ (spPremium / spStrike).toFixed(4) }}</div>
-            <div class="formula-final">{{ spPeriodYield.toFixed(4) }}%</div>
-          </div>
-          <div class="formula-block" style="margin-top: 8px;">
-            <div class="formula-step">年化收益率 = {{ spPeriodYield.toFixed(4) }}% × (365 / {{ spDays }})</div>
-            <div class="formula-final highlight">{{ spAnnualYield.toFixed(4) }}%</div>
-          </div>
-          <div class="formula-block" style="margin-top: 8px;">
-            <div class="formula-step">实际持仓成本 = {{ spStrike }} − {{ spPremium }} = {{ (spStrike - spPremium).toFixed(4) }}</div>
-            <div class="formula-final">{{ spNetCost.toFixed(4) }}</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 最终结论 -->
-      <div class="result-block conclusion">
-        <div class="block-label">📊 交易信号</div>
-        <div class="block-content">
-          <el-tag :type="spAnnualYield >= 20 ? 'success' : 'info'" size="small">
-            年化 {{ spAnnualYield.toFixed(2) }}%
-          </el-tag>
-          <p class="conclusion-desc">
-            若被行权接货，实际持仓成本为 <strong>{{ spNetCost.toFixed(2) }}</strong>，相较行权价节省了 <strong>{{ spPremium.toFixed(4) }}</strong> / 股。
-            <span v-if="spMarginOfSafety !== null">
-              当前股价 <strong>{{ spCurrentPrice }}</strong> 较持仓成本高出 <strong>{{ spMarginOfSafety.toFixed(2) }}%</strong>，
-              <span :class="spMarginOfSafety >= 0 ? 'safe' : 'danger'">
-                {{ spMarginOfSafety >= 0 ? '浮盈安全垫充足' : '已处于浮亏状态' }}
-              </span>。
-            </span>
-          </p>
-        </div>
       </div>
     </div>
   </div>
@@ -274,6 +288,20 @@ const spMarginOfSafety = computed(() => {
   flex: 1;
   overflow-y: auto;
   padding: 16px 24px;
+}
+
+.calc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.calc-card {
+  background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color);
+  border-radius: 8px;
+  padding: 16px;
 }
 
 .page-title {
