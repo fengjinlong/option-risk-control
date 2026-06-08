@@ -19,10 +19,6 @@ const navItems = [
   { path: '/spot-positions', label: '现货持仓' },
 ]
 
-function isActive(path: string) {
-  return currentPath.value === path
-}
-
 const prices = reactive({
   BTC: 0,
   ETH: 0,
@@ -103,8 +99,9 @@ async function saveSymbol() {
       <span class="title">Pre-trade Risk</span>
     </div>
     <div class="header-center">
-      <el-button v-for="item in navItems" :key="item.path" :type="isActive(item.path) ? 'success' : 'primary'"
-        size="small" @click="go(item.path)">{{ item.label }}</el-button>
+      <el-select :model-value="currentPath" size="small" placeholder="导航" style="width: 140px;" @change="go">
+        <el-option v-for="item in navItems" :key="item.path" :label="item.label" :value="item.path" />
+      </el-select>
       <el-button type="primary" size="small" @click="openSymbolModal">切换标的</el-button>
     </div>
     <div class="header-right">
