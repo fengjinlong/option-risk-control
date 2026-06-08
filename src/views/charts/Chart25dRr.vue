@@ -73,7 +73,7 @@ async function fetchData() {
   loading.value = true
   try {
     const res = await request.get<{ succ: boolean; value: SkewVolConeItem[] }>('/api/v1/market/skew-vol-cone', {
-      params: { currency: 'ETH', type: '25d-rr' },
+      params: { type: '25d-rr' },
     })
     if (res.succ && res.value) {
       updateChart(res.value)
