@@ -465,7 +465,7 @@ function formatTxTime(ts: number): string {
 // 添加标的弹窗
 // ══════════════════════════════════════════════════════════════════════════════
 
-const ALL_TOKENS = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'DOT', 'AVAX', 'ALGO', 'VET', 'FIL', 'AAVE']
+const ALL_TOKENS = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'LINK', 'ADA', 'AVAX', 'AAVE']
 const addTokenModalVisible = ref(false)
 const addTokenSearch = ref('')
 const selectedAddToken = ref('')
