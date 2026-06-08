@@ -21,7 +21,7 @@ const greekRows = computed(() => {
 
   return [
     { label: 'Delta', base: s.total_net_delta, delta: gg.delta, threshold: t?.delta_limit ?? 0, decimals: 4 },
-    { label: 'Gamma', base: s.total_net_gamma, delta: gg.gamma, threshold: t?.gamma_limit ?? 0, decimals: 6 },
+    { label: 'Gamma', base: s.total_net_gamma, delta: gg.gamma, threshold: t?.gamma_limit ?? 0, decimals: 9 },
     { label: 'Vega', base: s.total_net_vega, delta: gg.vega, threshold: t?.vega_limit ?? 0, decimals: 4 },
     { label: 'Theta', base: s.total_net_theta, delta: gg.theta, threshold: t?.theta_limit ?? 0, decimals: 4 },
   ].map(row => ({
@@ -31,8 +31,8 @@ const greekRows = computed(() => {
   }))
 })
 
-function fmt(v: number, d: number): string {
-  return v.toFixed(d)
+function fmt(v: number | undefined | null, d: number): string {
+  return Number(v).toFixed(d)
 }
 
 interface GreekRow {

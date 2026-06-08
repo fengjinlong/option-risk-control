@@ -160,7 +160,7 @@ onMounted(() => {
             </div>
             <div class="field">
               <span class="field-label">数量</span>
-              <el-input-number :model-value="group.size" :min="0.1" :max="100" :step="0.1" :precision="1" size="small"
+              <el-input-number :model-value="group.size" :min="0.01" :max="100" :step="0.01" :precision="2" size="small"
                 controls-position="right" @update:model-value="updateGroup(group.id, { size: $event as number })" />
             </div>
           </div>

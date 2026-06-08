@@ -30,10 +30,10 @@ const greekRows = computed(() => {
   const t = greeksThresholds.value
   if (!s || !t) return []
   return [
-    { label: 'Delta', val: s.total_net_delta, threshold: t.delta_limit, unit: '', decimals: 4 },
-    { label: 'Gamma', val: s.total_net_gamma, threshold: t.gamma_limit, unit: '', decimals: 6 },
-    { label: 'Vega', val: s.total_net_vega, threshold: t.vega_limit, unit: '/%', decimals: 4 },
-    { label: 'Theta', val: s.total_net_theta, threshold: t.theta_limit, unit: '/day', decimals: 4 },
+    { label: 'Delta', val: s.total_net_delta, threshold: t.delta_limit ?? 0, unit: '', decimals: 4 },
+    { label: 'Gamma', val: s.total_net_gamma, threshold: t.gamma_limit ?? 0, unit: '', decimals: 9 },
+    { label: 'Vega', val: s.total_net_vega, threshold: t.vega_limit ?? 0, unit: '/%', decimals: 4 },
+    { label: 'Theta', val: s.total_net_theta, threshold: t.theta_limit ?? 0, unit: '/day', decimals: 4 },
   ]
 })
 
@@ -45,8 +45,8 @@ function barColor(val: number, threshold: number): string {
   return Math.abs(val / threshold) >= 0.7 ? '#ff4d4f' : '#52c41a'
 }
 
-function fmt(val: number, decimals: number): string {
-  return val.toFixed(decimals)
+function fmt(val: number | undefined | null, decimals: number): string {
+  return Number(val).toFixed(decimals)
 }
 
 // ── Positions ─────────────────────────────────────────────────────────────────

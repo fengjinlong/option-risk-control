@@ -267,7 +267,8 @@ const positionsState = reactive<PositionsState>({
 async function fetchPositions() {
   positionsState.loading = true
   try {
-    const res = await request.get<import('../types/account').EthOptionsResponse>('/api/v1/positions/eth-options')
+    const res = await request.get<import('../types/account').EthOptionsResponse>('/api/v1/positions/options')
+    // const res = await request.get<import('../types/account').EthOptionsResponse>('/api/v1/positions/eth-options')
     positionsState.data = res as unknown as import('../types/account').EthOptionsResponse
   } finally {
     positionsState.loading = false
@@ -329,7 +330,8 @@ const optionsState = reactive<OptionsState>({
 async function fetchDates() {
   optionsState.datesLoading = true
   try {
-    const res = await request.get<import('../types/account').EthOptionDatesResponse>('/api/v1/market/eth-options/dates')
+    const res = await request.get<import('../types/account').EthOptionDatesResponse>('/api/v1/market/options/dates')
+    // const res = await request.get<import('../types/account').EthOptionDatesResponse>('/api/v1/market/eth-options/dates')
     optionsState.dates = (res as any).data ?? []
   } finally {
     optionsState.datesLoading = false
@@ -340,7 +342,8 @@ async function fetchChain(date: string) {
   if (optionsState.chainMap[date]) return
   optionsState.chainLoading = true
   try {
-    const res = await request.get<import('../types/account').EthOptionsChainResponse>(`/api/v1/market/eth-options/chain?date=${date}`)
+    // const res = await request.get<import('../types/account').EthOptionsChainResponse>(`/api/v1/market/eth-options/chain?date=${date}`)
+    const res = await request.get<import('../types/account').EthOptionsChainResponse>(`/api/v1/market/options/chain?date=${date}`)
     optionsState.chainMap[date] = (res as any).data ?? []
   } finally {
     optionsState.chainLoading = false

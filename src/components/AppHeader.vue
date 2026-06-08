@@ -84,6 +84,7 @@ async function saveSymbol() {
     await request.patch('/api/v1/config/symbol', { symbol: selectedSymbol.value })
     symbolModalVisible.value = false
     ElMessage.success(`已切换为 ${selectedSymbol.value}`)
+    router.go(0)
   } catch (e: any) {
     ElMessage.error(e.response?.data?.message || '切换失败')
   } finally {
