@@ -98,12 +98,14 @@ async function saveSymbol() {
     <div class="header-left">
       <span class="logo-text">📊</span>
       <span class="title">Pre-trade Risk</span>
+      <span class="current-symbol">当前标的: {{ selectedSymbol }}</span>
     </div>
     <div class="header-center">
       <el-select :model-value="currentPath" size="small" placeholder="导航" style="width: 140px;" @change="go">
         <el-option v-for="item in navItems" :key="item.path" :label="item.label" :value="item.path" />
       </el-select>
       <el-button type="primary" size="small" @click="openSymbolModal">切换标的</el-button>
+
     </div>
     <div class="header-right">
       <el-tag type="success" size="small">BTC IV%: {{ volRadar.BTC.iv_percentile_1y || '--' }}</el-tag>
@@ -181,5 +183,44 @@ async function saveSymbol() {
   height: 32px;
   line-height: 32px;
   margin: 0;
+}
+
+.current-symbol0 {
+  font-size: 13px;
+  padding-left: 10px;
+  /* font-size: 40px; */
+  /* font-weight: bold; */
+  /* 1. 设置彩虹渐变色背景 */
+  background-image: linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet);
+  /* 2. 把背景裁剪到只有文字的地方 */
+  -webkit-background-clip: text;
+  background-clip: text;
+  /* 3. 把文字本身的颜色变透明，这样就能看到后面的背景了 */
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.current-symbol {
+  font-size: 14px;
+  font-weight: bold;
+  padding-left: 10px;
+  /* 柔和的金色和白金渐变 */
+  background-image: linear-gradient(135deg, #fad961 0%, #f76b1c 50%, #fad961 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: shine 3s linear infinite;
+}
+
+@keyframes shine {
+  0% {
+    background-position: 0% center;
+  }
+
+  100% {
+    background-position: -200% center;
+  }
 }
 </style>

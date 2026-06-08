@@ -9,6 +9,7 @@ const longDays = ref(60)
 const longIV = ref(28)
 
 const showResult = ref(false)
+const spResultVisible = ref(false)
 
 // 计算
 const longT = computed(() => longDays.value / 365)
@@ -74,6 +75,30 @@ const arbDesc = computed(() => {
 function calc() {
   showResult.value = true
 }
+
+// Sell Put 计算器
+const spPremium = ref(0.9)
+const spStrike = ref(54)
+const spDays = ref(18)
+const spCurrentPrice = ref<number | undefined>(undefined)
+
+const spPeriodYield = computed(() => {
+  if (spStrike.value === 0) return 0
+  return (spPremium.value / spStrike.value) * 100
+})
+
+const spAnnualYield = computed(() => {
+  if (spDays.value === 0) return 0
+  return spPeriodYield.value * (365 / spDays.value)
+})
+
+const spNetCost = computed(() => spStrike.value - spPremium.value)
+
+const spMarginOfSafety = computed(() => {
+  const cp = spCurrentPrice.value
+  if (cp === undefined || cp === null || cp === 0) return null
+  return ((cp - spNetCost.value) / cp) * 100
+})
 </script>
 
 <template>
@@ -154,6 +179,83 @@ function calc() {
             </div>
           </div>
         </template>
+      </div>
+    </div>
+
+    <!-- Sell Put 年化收益率计算器 -->
+    <div class="page-title" style="margin-top: 24px;">Sell Put 年化收益率计算器</div>
+
+    <div class="section">
+      <div class="row">
+        <div class="field">
+          <label>每股权利金（Premium）</label>
+          <el-input-number v-model="spPremium" :min="0" :precision="4" size="small" />
+        </div>
+        <div class="field">
+          <label>行权价 / 接货本金（Strike Price）</label>
+          <el-input-number v-model="spStrike" :min="0" :precision="2" size="small" />
+        </div>
+        <div class="field">
+          <label>期权剩余天数（Days to Maturity）</label>
+          <el-input-number v-model="spDays" :min="1" size="small" />
+        </div>
+        <div class="field">
+          <label>当前股价（可选）</label>
+          <el-input-number v-model="spCurrentPrice" :min="0" :precision="2" size="small" placeholder="可选" />
+        </div>
+      </div>
+      <el-button type="primary" size="small" @click="spResultVisible = true">计算收益</el-button>
+    </div>
+
+    <!-- Sell Put 结果 -->
+    <div v-if="spResultVisible" class="section result">
+      <div class="result-title">计算结果</div>
+      <div class="result-row">
+        <div class="result-col">
+          <div class="block-label">📈 核心指标</div>
+          <div class="data-row">单期收益率 <strong>{{ spPeriodYield.toFixed(2) }}%</strong></div>
+          <div class="data-row">年化收益率 <strong class="highlight">{{ spAnnualYield.toFixed(2) }}%</strong></div>
+          <div class="data-row">实际持仓成本 <strong>{{ spNetCost.toFixed(2) }}</strong></div>
+          <div class="data-row" v-if="spMarginOfSafety !== null">
+            资金安全垫 <strong :class="spMarginOfSafety >= 0 ? 'safe' : 'danger'">{{ spMarginOfSafety.toFixed(2) }}%</strong>
+          </div>
+          <div class="data-row" v-else>资金安全垫 <span class="dim">—（请填写当前股价）</span></div>
+        </div>
+
+        <div class="result-col">
+          <div class="block-label">🧮 计算过程</div>
+          <div class="formula-block">
+            <div class="formula-step">单期收益率 = {{ spPremium }} / {{ spStrike }} = {{ (spPremium / spStrike).toFixed(4) }}</div>
+            <div class="formula-final">{{ spPeriodYield.toFixed(4) }}%</div>
+          </div>
+          <div class="formula-block" style="margin-top: 8px;">
+            <div class="formula-step">年化收益率 = {{ spPeriodYield.toFixed(4) }}% × (365 / {{ spDays }})</div>
+            <div class="formula-final highlight">{{ spAnnualYield.toFixed(4) }}%</div>
+          </div>
+          <div class="formula-block" style="margin-top: 8px;">
+            <div class="formula-step">实际持仓成本 = {{ spStrike }} − {{ spPremium }} = {{ (spStrike - spPremium).toFixed(4) }}</div>
+            <div class="formula-final">{{ spNetCost.toFixed(4) }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 最终结论 -->
+      <div class="result-block conclusion">
+        <div class="block-label">📊 交易信号</div>
+        <div class="block-content">
+          <el-tag :type="spAnnualYield >= 20 ? 'success' : 'info'" size="small">
+            年化 {{ spAnnualYield.toFixed(2) }}%
+          </el-tag>
+          <p class="conclusion-desc">
+            若被行权接货，实际持仓成本为 <strong>{{ spNetCost.toFixed(2) }}</strong>，相较行权价节省了 <strong>{{ spPremium.toFixed(4) }}</strong> / 股。
+            <span v-if="spMarginOfSafety !== null">
+              当前股价 <strong>{{ spCurrentPrice }}</strong> 较持仓成本高出 <strong>{{ spMarginOfSafety.toFixed(2) }}%</strong>，
+              <span :class="spMarginOfSafety >= 0 ? 'safe' : 'danger'">
+                {{ spMarginOfSafety >= 0 ? '浮盈安全垫充足' : '已处于浮亏状态' }}
+              </span>。
+            </span>
+          </p>
+        </div>
       </div>
     </div>
   </div>
@@ -309,5 +411,22 @@ function calc() {
 
 .conclusion-desc.arb {
   color: #d97706;
+}
+
+.highlight {
+  color: #dc2626;
+}
+
+.safe {
+  color: #16a34a;
+}
+
+.danger {
+  color: #dc2626;
+}
+
+.dim {
+  color: var(--el-text-color-placeholder);
+  font-style: italic;
 }
 </style>

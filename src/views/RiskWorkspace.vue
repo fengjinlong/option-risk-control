@@ -45,7 +45,7 @@ onMounted(() => {
 
 .workspace-body {
   display: grid;
-  grid-template-columns: 1fr 2fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   flex: 1;
   overflow: hidden;
 }
