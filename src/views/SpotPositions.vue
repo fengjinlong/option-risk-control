@@ -73,7 +73,7 @@ interface TransactionHistoryItem {
 
 async function fetchHoldings() {
   try {
-    const items = await request.get<HoldingsItem[]>('/api/v1/portfolio/holdings') as unknown as HoldingsItem[]
+    const items = await request.get<any[]>('/api/v1/portfolio/holdings') as unknown as any[]
     initHoldings(items)
   } catch (e) {
     console.error('fetchHoldings failed', e)
@@ -520,7 +520,11 @@ const tableData = computed(() => {
     const pnl = getHoldingPnL(h.ticker)
     const pnlPct = getHoldingPnLPercent(h.ticker)
     const currentValue = mul(h.qty, livePrice)
-    return { ticker: h.ticker, qty: h.qty, avgCost: h.avgCost, currentPrice: livePrice, pnl, pnlPct, currentValue, txCount: h.transactions.length }
+    const totalBuyAmount = h.totalBuyAmount
+    const totalSellAmount = h.totalSellAmount
+    console.log(h)
+    // 总买入 总卖出
+    return { ticker: h.ticker, qty: h.qty, avgCost: h.avgCost, currentPrice: livePrice, pnl, pnlPct, currentValue, txCount: h.transactions.length, totalBuyAmount, totalSellAmount }
   })
 })
 </script>
@@ -608,17 +612,26 @@ const tableData = computed(() => {
           <el-table-column prop="ticker" label="标的" width="100" align="center">
             <template #default="{ row }">
               <el-tag type="primary" effect="dark">{{ row.ticker }}</el-tag>
+              <!-- {{ row }} -->
             </template>
           </el-table-column>
-          <el-table-column label="数量" width="150" align="center">
+          <el-table-column label="数量" align="center">
             <template #default="{ row }">{{ formatQty(row.qty) }}</template>
           </el-table-column>
-          <el-table-column label="均价" width="150" align="center">
+          <el-table-column label="均价" align="center">
             <template #default="{ row }">${{ formatPrice(row.avgCost) }}</template>
+          </el-table-column>
+          <el-table-column label="总买入" align="center">
+            <template #default="{ row }">${{ row.totalBuyAmount }}</template>
+          </el-table-column>
+
+          <el-table-column label="总卖出" align="center">
+            <template #default="{ row }">${{ row.totalSellAmount }}</template>
           </el-table-column>
 
 
-          <el-table-column label="浮动盈亏" min-width="160" align="center">
+
+          <el-table-column label="浮动盈亏" align="center">
             <template #default="{ row }">
               <div :class="['pnl-cell', pnlClass(row.pnl)]">
                 <el-text size="small" :type="row.pnl.gt(ZERO) ? 'success' : row.pnl.lt(ZERO) ? 'danger' : 'info'">

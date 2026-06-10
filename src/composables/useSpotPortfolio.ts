@@ -53,12 +53,14 @@ export function initFromWatchlist(items: { ticker: string; live_price: string }[
   }
 }
 
-export function initHoldings(items: { ticker: string; current_quantity: string; average_cost: string }[]): void {
+export function initHoldings(items: { ticker: string; current_quantity: string; average_cost: string; total_buy_amount: string; total_sell_amount: string }[]): void {
   for (const item of items) {
     const h = getHolding(item.ticker)
     if (h) {
       h.qty = item.current_quantity
       h.avgCost = item.average_cost
+      h.totalBuyAmount = item.total_buy_amount
+      h.totalSellAmount = item.total_sell_amount
     }
   }
 }
