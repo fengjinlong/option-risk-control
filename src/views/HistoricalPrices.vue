@@ -33,13 +33,13 @@
 
       <div v-if="selectedOption" class="charts-row" v-loading="chartLoading">
         <div class="chart-card chart-panel">
-          <div ref="highChartRef" class="chart" />
+          <div ref="priceChartRef" class="chart" />
           <div v-if="!chartLoading && chartData.length === 0" class="empty-chart-overlay">
             暂无数据
           </div>
         </div>
         <div class="chart-card chart-panel">
-          <div ref="lowChartRef" class="chart" />
+          <div ref="rangeChartRef" class="chart" />
           <div v-if="!chartLoading && chartData.length === 0" class="empty-chart-overlay">
             暂无数据
           </div>
@@ -63,10 +63,10 @@ const {
 
 const selectedDate = ref('')
 const selectedOption = ref('')
-const highChartRef = ref<HTMLDivElement>()
-const lowChartRef = ref<HTMLDivElement>()
-const highChart = ref<echarts.ECharts | null>(null)
-const lowChart = ref<echarts.ECharts | null>(null)
+const priceChartRef = ref<HTMLDivElement>()
+const rangeChartRef = ref<HTMLDivElement>()
+const priceChart = ref<echarts.ECharts | null>(null)
+const rangeChart = ref<echarts.ECharts | null>(null)
 const chartLoading = ref(false)
 const chartData = ref<HistoricalHourItem[]>([])
 
@@ -108,11 +108,11 @@ async function handleOptionChange(symbol: string) {
 async function initCharts() {
   await nextTick()
   await new Promise(resolve => setTimeout(resolve, 50))
-  if (highChartRef.value && !highChart.value) {
-    highChart.value = echarts.init(highChartRef.value)
+  if (priceChartRef.value && !priceChart.value) {
+    priceChart.value = echarts.init(priceChartRef.value)
   }
-  if (lowChartRef.value && !lowChart.value) {
-    lowChart.value = echarts.init(lowChartRef.value)
+  if (rangeChartRef.value && !rangeChart.value) {
+    rangeChart.value = echarts.init(rangeChartRef.value)
   }
 }
 
@@ -183,44 +183,61 @@ function updateCharts(data: HistoricalHourItem[]) {
     },
   }
 
-  if (highChart.value) {
-    highChart.value.setOption({
-      title: { text: '最高价 (HIGH)', textStyle: { fontSize: 13, fontWeight: 700 } },
+  if (priceChart.value) {
+    priceChart.value.setOption({
+      title: { text: '最高价 / 最低价', textStyle: { fontSize: 13, fontWeight: 700 } },
       ...commonOpts,
-      series: [{
-        name: 'HIGH',
-        type: 'line',
-        data: data.map(d => d.HIGH),
-        smooth: true,
-        connectNulls: true,
-        color: '#52c41a',
-        areaStyle: { color: 'rgba(82,196,26,0.08)' },
-      }],
+      legend: { top: 8, right: 20, textStyle: { fontSize: 10 } },
+      series: [
+        {
+          name: 'HIGH',
+          type: 'line',
+          data: data.map(d => d.HIGH),
+          smooth: true,
+          connectNulls: true,
+          color: '#52c41a',
+        },
+        {
+          name: 'LOW',
+          type: 'line',
+          data: data.map(d => d.LOW),
+          smooth: true,
+          connectNulls: true,
+          color: '#ff4d4f',
+        },
+      ],
     }, { notMerge: true })
-    highChart.value.resize()
+    priceChart.value.resize()
   }
 
-  if (lowChart.value) {
-    lowChart.value.setOption({
-      title: { text: '最低价 (LOW)', textStyle: { fontSize: 13, fontWeight: 700 } },
+  if (rangeChart.value) {
+    const rangeData = data.map(d => +(d.HIGH - d.LOW).toFixed(4))
+    rangeChart.value.setOption({
+      title: { text: '振幅 (HIGH - LOW)', textStyle: { fontSize: 13, fontWeight: 700 } },
       ...commonOpts,
+      yAxis: {
+        type: 'value' as const,
+        scale: true,
+        axisLabel: { fontSize: 10, formatter: (v: number) => v.toFixed(4) },
+        splitLine: { lineStyle: { type: 'dashed', opacity: 0.3 } },
+      },
       series: [{
-        name: 'LOW',
+        name: '振幅',
         type: 'line',
-        data: data.map(d => d.LOW),
+        data: rangeData,
         smooth: true,
         connectNulls: true,
-        color: '#ff4d4f',
-        areaStyle: { color: 'rgba(255,77,79,0.08)' },
+        color: '#1677ff',
+        areaStyle: { color: 'rgba(22,119,255,0.08)' },
       }],
     }, { notMerge: true })
-    lowChart.value.resize()
+    rangeChart.value.resize()
   }
 }
 
 function onResize() {
-  highChart.value?.resize()
-  lowChart.value?.resize()
+  priceChart.value?.resize()
+  rangeChart.value?.resize()
 }
 
 onMounted(() => {
@@ -230,8 +247,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', onResize)
-  highChart.value?.dispose()
-  lowChart.value?.dispose()
+  priceChart.value?.dispose()
+  rangeChart.value?.dispose()
 })
 </script>
 
@@ -314,6 +331,7 @@ onUnmounted(() => {
   display: flex;
   gap: 16px;
   margin-top: 16px;
+  flex-wrap: wrap;
 }
 
 .chart-card {
