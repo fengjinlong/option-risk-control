@@ -17,6 +17,8 @@ const navItems = [
   { path: '/position-risk', label: '持仓风控评估' },
   { path: '/greed-fear', label: '贪婪恐慌' },
   { path: '/spot-positions', label: '现货持仓' },
+  // 历史价格
+  { path: '/historical-prices', label: '历史价格' },
 ]
 
 const prices = reactive({
