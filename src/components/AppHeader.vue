@@ -55,6 +55,7 @@ async function fetchCurrentSymbol() {
 }
 
 onMounted(async () => {
+  fetchCurrentSymbol()
   try {
     const priceRes: any = await request.get('/api/v1/market/prices')
     if (priceRes?.data) {
