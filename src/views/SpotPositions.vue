@@ -522,7 +522,6 @@ const tableData = computed(() => {
     const currentValue = mul(h.qty, livePrice)
     const totalBuyAmount = h.totalBuyAmount
     const totalSellAmount = h.totalSellAmount
-    console.log(h)
     // 总买入 总卖出
     return { ticker: h.ticker, qty: h.qty, avgCost: h.avgCost, currentPrice: livePrice, pnl, pnlPct, currentValue, txCount: h.transactions.length, totalBuyAmount, totalSellAmount }
   })
@@ -645,7 +644,7 @@ const tableData = computed(() => {
               <el-space size="small">
                 <el-button type="primary" size="small" @click="openTxModal(row.ticker)">记录</el-button>
                 <el-button type="info" size="small" plain @click="openHistoryModal(row.ticker)">历史 ({{ row.txCount
-                  }})</el-button>
+                }})</el-button>
               </el-space>
             </template>
           </el-table-column>
@@ -696,7 +695,7 @@ const tableData = computed(() => {
           <label>{{ txInputMode === 'qty' ? '金额 (USDT)' : `数量 (${txModalTicker})` }}</label>
           <div class="calc-value">{{ txInputMode === 'qty' ? (txAmountInput || '0.000000') : (txQtyInput ||
             '0.000000')
-          }}
+            }}
           </div>
         </div>
 
