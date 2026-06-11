@@ -54,6 +54,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { useRiskWorkspace } from '../composables/useRiskWorkspace'
 import AppHeader from '../components/AppHeader.vue'
+import request from '../utils/request'
 
 const {
   options,
@@ -71,7 +72,6 @@ const chartLoading = ref(false)
 const chartData = ref<HistoricalHourItem[]>([])
 
 // const COINDESK_BASE = 'https://data-api.coindesk.com/options/v1/historical/hours'
-const COINDESK_BASE = 'https://data-api.coindesk.com/options/v1/historical/days'
 
 interface HistoricalHourItem {
   UNIT: 'HOUR' | string
@@ -119,18 +119,20 @@ async function initCharts() {
 async function fetchHistoricalHours(instrument: string) {
   chartLoading.value = true
   try {
-    const params = new URLSearchParams({
-      market: 'bybit',
-      instrument,
-      groups: 'OHLC',
-      limit: '300',
-      aggregate: '1',
-      fill: 'true',
-      apply_mapping: 'true',
+    const json: GetHistoricalHoursResponse = await request.get('/api/v1/market/options/historical-price', {
+      params: {
+        market: 'bybit',
+        instrument,
+        groups: 'OHLC',
+        limit: '300',
+        aggregate: '1',
+        fill: 'true',
+        apply_mapping: 'true',
+      },
     })
-    const res = await fetch(`${COINDESK_BASE}?${params}`)
-    const json: GetHistoricalHoursResponse = await res.json()
-    const sorted = (json.Data ?? []).sort((a, b) => a.TIMESTAMP - b.TIMESTAMP)
+
+    console.log('json', json)
+    const sorted = (json.data.Data ?? []).sort((a, b) => a.TIMESTAMP - b.TIMESTAMP)
     await nextTick()
     chartData.value = sorted
     if (sorted.length > 0) {
