@@ -2,6 +2,15 @@
 import { ref, computed } from 'vue'
 import AppHeader from '../components/AppHeader.vue'
 
+function getDaysFromToday(targetDate: Date): number {
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  const target = new Date(targetDate)
+  target.setHours(0, 0, 0, 0)
+  const diff = Math.round((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+  return Math.max(1, diff)
+}
+
 // 输入
 const shortDays = ref(30)
 const shortIV = ref(20)
@@ -77,9 +86,13 @@ function calc() {
 }
 
 // Sell Put 计算器
-const spPremium = ref(0.9)
-const spStrike = ref(54)
-const spDays = ref(18)
+const spPremium = ref(1.0)
+const spStrike = ref(66)
+const spExpirationDate = ref<string>('')
+const spDays = computed(() => {
+  if (!spExpirationDate.value) return 18
+  return getDaysFromToday(new Date(spExpirationDate.value))
+})
 const spCurrentPrice = ref<number | undefined>(undefined)
 
 const spPeriodYield = computed(() => {
@@ -193,15 +206,16 @@ const spMarginOfSafety = computed(() => {
             <div class="row">
               <div class="field">
                 <label>每股权利金（Premium）</label>
-                <el-input-number v-model="spPremium" :min="0" :precision="4" size="small" />
+                <el-input-number v-model="spPremium" :min="0" :precision="1" size="small" />
               </div>
               <div class="field">
                 <label>行权价 / 接货本金（Strike Price）</label>
                 <el-input-number v-model="spStrike" :min="0" :precision="2" size="small" />
               </div>
               <div class="field">
-                <label>期权剩余天数（Days to Maturity）</label>
-                <el-input-number v-model="spDays" :min="1" size="small" />
+                <label>行权日（Expiration Date）</label>
+                <el-date-picker v-model="spExpirationDate" type="date" size="small" placeholder="选择行权日"
+                  format="YYYY-MM-DD" value-format="YYYY-MM-DD" :clearable="true" />
               </div>
               <div class="field">
                 <label>当前股价（可选）</label>
@@ -217,12 +231,13 @@ const spMarginOfSafety = computed(() => {
             <div class="result-row">
               <div class="result-col">
                 <div class="block-label">📈 核心指标</div>
+                <div class="data-row">期权剩余天数 <strong>{{ spDays }} 天</strong>（距今至 {{ spExpirationDate || '—' }}）</div>
                 <div class="data-row">单期收益率 <strong>{{ spPeriodYield.toFixed(2) }}%</strong></div>
                 <div class="data-row">年化收益率 <strong class="highlight">{{ spAnnualYield.toFixed(2) }}%</strong></div>
                 <div class="data-row">实际持仓成本 <strong>{{ spNetCost.toFixed(2) }}</strong></div>
                 <div class="data-row" v-if="spMarginOfSafety !== null">
                   资金安全垫 <strong :class="spMarginOfSafety >= 0 ? 'safe' : 'danger'">{{ spMarginOfSafety.toFixed(2)
-                    }}%</strong>
+                  }}%</strong>
                 </div>
                 <div class="data-row" v-else>资金安全垫 <span class="dim">—（请填写当前股价）</span></div>
               </div>
@@ -256,10 +271,10 @@ const spMarginOfSafety = computed(() => {
                 </el-tag>
                 <p class="conclusion-desc">
                   若被行权接货，实际持仓成本为 <strong>{{ spNetCost.toFixed(2) }}</strong>，相较行权价节省了 <strong>{{ spPremium.toFixed(4)
-                    }}</strong> / 股。
+                  }}</strong> / 股。
                   <span v-if="spMarginOfSafety !== null">
                     当前股价 <strong>{{ spCurrentPrice }}</strong> 较持仓成本高出 <strong>{{ spMarginOfSafety.toFixed(2)
-                      }}%</strong>，
+                    }}%</strong>，
                     <span :class="spMarginOfSafety >= 0 ? 'safe' : 'danger'">
                       {{ spMarginOfSafety >= 0 ? '浮盈安全垫充足' : '已处于浮亏状态' }}
                     </span>。

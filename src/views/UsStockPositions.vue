@@ -51,12 +51,12 @@
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </svg>
               </button>
-              <button class="icon-btn danger" @click="openDeleteDialog(item.ticker)" title="删除">
+              <!-- <button class="icon-btn danger" @click="openDeleteDialog(item.ticker)" title="删除">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="3,6 5,6 21,6" />
                   <path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6m3,0V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2v2" />
                 </svg>
-              </button>
+              </button> -->
             </div>
           </div>
 
@@ -238,9 +238,9 @@ interface ApiPriceItem {
 
 // 硬编码持仓数据 —— 可在此处增删标的
 const stocks = ref<StockItem[]>([
-  { id: '1', ticker: 'AAPL', costPrice: 175.50, quantity: 50,   note: '2025-01 长持', createdAt: '2025-01-15' },
-  { id: '2', ticker: 'NVDA', costPrice: 480.00, quantity: 10,   note: '',             createdAt: '2025-02-20' },
-  { id: '3', ticker: 'TSLA', costPrice: 220.00, quantity: 20,   note: '2024-06 买入', createdAt: '2024-06-10' },
+  { id: '1', ticker: 'AAPL', costPrice: 175.50, quantity: 50, note: '2025-01 长持', createdAt: '2025-01-15' },
+  { id: '2', ticker: 'NVDA', costPrice: 480.00, quantity: 10, note: '', createdAt: '2025-02-20' },
+  { id: '3', ticker: 'TSLA', costPrice: 220.00, quantity: 20, note: '2024-06 买入', createdAt: '2024-06-10' },
 ])
 
 const livePrices = ref<Record<string, ApiPriceItem>>({})
