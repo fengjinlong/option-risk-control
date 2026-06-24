@@ -18,7 +18,8 @@ const navItems = [
   { path: '/greed-fear', label: '贪婪恐慌' },
   { path: '/spot-positions', label: '现货持仓' },
   // 历史价格
-  { path: '/historical-prices', label: '历史价格' },
+  { path: '/historical-prices', label: '期权历史价格' },
+  { path: '/us-stock-positions', label: '美股持仓' },
 ]
 
 const prices = reactive({
