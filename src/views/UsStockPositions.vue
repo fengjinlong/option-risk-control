@@ -41,7 +41,7 @@
 
       <!-- 持仓卡片网格 -->
       <div class="stocks-grid" v-if="displayStocks.length > 0">
-        <div v-for="item in displayStocks" :key="item.ticker" class="stock-card" :class="item.pnlClass">
+        <div v-for="item in displayStocks" :key="item.id" class="stock-card" :class="item.pnlClass">
           <div class="card-header">
             <span class="ticker-name">{{ item.ticker }}</span>
             <div class="card-actions">
@@ -383,11 +383,10 @@ function validateForm(): boolean {
   return true
 }
 
-function confirmFormDialog() {
+async function confirmFormDialog() {
   if (!validateForm()) return
   const d = formDialog.value
   const tickerUpper = d.ticker.trim().toUpperCase()
-  const today = new Date().toISOString().slice(0, 10)
   if (d.isEdit) {
     const idx = stocks.value.findIndex(s => s.id === d._id)
     if (idx !== -1) {
@@ -399,19 +398,32 @@ function confirmFormDialog() {
       }
     }
   } else {
-    const record: StockItem = {
-      id: Date.now().toString(),
-      ticker: tickerUpper,
-      costPrice: d.costPrice,
-      quantity: d.quantity,
-      note: d.note.trim() || undefined,
-      createdAt: today,
+    try {
+      const payload = {
+        ticker: tickerUpper,
+        cost_price: d.costPrice,
+        quantity: d.quantity,
+        note: d.note.trim() || undefined,
+      }
+      const res: any = await request.post('/api/v1/us-stock/positions', payload)
+      if (res?.data) {
+        stocks.value.push({
+          id: res.data.id,
+          ticker: res.data.ticker,
+          costPrice: res.data.cost_price,
+          quantity: res.data.quantity,
+          note: res.data.note || '',
+          createdAt: res.data.created_at,
+        })
+      }
+    } catch (e: any) {
+      ElMessage.error(e.response?.data?.message || '添加失败')
+      return
     }
-    stocks.value.push(record)
   }
   d.visible = false
-  ElMessage.success(d.isEdit ? `${tickerUpper} 已更新` : `${tickerUpper} 已添加`)
-  refreshPrices()
+  ElMessage.success(`${tickerUpper} 已添加`)
+  await refreshPrices()
 }
 
 // ── 删除 ────────────────────────────────────────────────────────────────────
@@ -423,22 +435,50 @@ function openDeleteDialog(id: string) {
   deleteDialog.value = { visible: true, id, ticker: item?.ticker ?? '' }
 }
 
-function confirmDelete() {
-  const idx = stocks.value.findIndex(s => s.id === deleteDialog.value.id)
-  if (idx !== -1) {
-    const ticker = stocks.value[idx].ticker
-    stocks.value.splice(idx, 1)
-    delete livePrices.value[ticker]
+async function confirmDelete() {
+  try {
+    await request.delete(`/api/v1/us-stock/positions/${deleteDialog.value.id}`)
+    const idx = stocks.value.findIndex(s => s.id === deleteDialog.value.id)
+    if (idx !== -1) {
+      const ticker = stocks.value[idx].ticker
+      stocks.value.splice(idx, 1)
+      delete livePrices.value[ticker]
+    }
+    ElMessage.success(`已删除`)
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.message || '删除失败')
+    return
+  } finally {
+    deleteDialog.value.visible = false
   }
-  deleteDialog.value.visible = false
-  ElMessage.success(`已删除`)
 }
 
 // ── 生命周期 ─────────────────────────────────────────────────────────────────
 
-onMounted(() => {
-  refreshPrices()
+onMounted(async () => {
+  await fetchPositions()
+  await refreshPrices()
 })
+
+async function fetchPositions() {
+  try {
+    const res: any = await request.get('/api/v1/us-stock/positions')
+    if (res?.data && Array.isArray(res.data)) {
+      stocks.value = res.data.map((item: any) => ({
+        id: item.id,
+        ticker: item.ticker,
+        costPrice: item.cost_price,
+        quantity: item.quantity,
+        totalCost: item.total_cost,
+        note: item.note || '',
+        createdAt: item.created_at,
+      }))
+    }
+  } catch (e: any) {
+    console.error('[UsStockPositions] fetchPositions error:', e)
+    ElMessage.error(e.response?.data?.message || '获取持仓列表失败')
+  }
+}
 </script>
 
 <style scoped>
