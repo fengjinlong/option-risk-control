@@ -105,6 +105,11 @@
               <el-tag type="primary" effect="dark" size="small">{{ row.ticker }}</el-tag>
             </template>
           </el-table-column>
+          <el-table-column label="创建日期" width="100" align="center">
+            <template #default="{ row }">
+              <span class="muted">{{ row.createdAt }}</span>
+            </template>
+          </el-table-column>
           <el-table-column label="数量" align="center">
             <template #default="{ row }">{{ formatQty(row.quantity) }}</template>
           </el-table-column>
@@ -142,7 +147,7 @@
             <template #default="{ row }">
               <el-space size="small">
                 <el-button type="primary" size="small" plain @click="openEditDialog(row)">编辑</el-button>
-                <el-button type="danger" size="small" plain @click="openDeleteDialog(row.ticker)">删除</el-button>
+                <el-button type="danger" size="small" plain @click="openDeleteDialog(row.id)">删除</el-button>
               </el-space>
             </template>
           </el-table-column>
@@ -205,10 +210,12 @@ import request from '../utils/request'
 // ── 类型 ─────────────────────────────────────────────────────────────────────
 
 interface StockItem {
+  id: string
   ticker: string
   costPrice: number
   quantity: number
   note?: string
+  createdAt: string
 }
 
 interface StockDisplay extends StockItem {
@@ -231,9 +238,9 @@ interface ApiPriceItem {
 
 // 硬编码持仓数据 —— 可在此处增删标的
 const stocks = ref<StockItem[]>([
-  { ticker: 'AAPL', costPrice: 175.50, quantity: 50, note: '2025-01 长持' },
-  { ticker: 'NVDA', costPrice: 480.00, quantity: 10, note: '' },
-  { ticker: 'TSLA', costPrice: 220.00, quantity: 20, note: '2024-06 买入' },
+  { id: '1', ticker: 'AAPL', costPrice: 175.50, quantity: 50,   note: '2025-01 长持', createdAt: '2025-01-15' },
+  { id: '2', ticker: 'NVDA', costPrice: 480.00, quantity: 10,   note: '',             createdAt: '2025-02-20' },
+  { id: '3', ticker: 'TSLA', costPrice: 220.00, quantity: 20,   note: '2024-06 买入', createdAt: '2024-06-10' },
 ])
 
 const livePrices = ref<Record<string, ApiPriceItem>>({})
@@ -334,6 +341,7 @@ async function refreshPrices() {
 const formDialog = ref({
   visible: false,
   isEdit: false,
+  _id: '',
   ticker: '',
   costPrice: 0,
   quantity: 0,
@@ -352,13 +360,14 @@ function syncQuantity() {
 }
 
 function openAddDialog() {
-  formDialog.value = { visible: true, isEdit: false, ticker: '', costPrice: 0, quantity: 0, totalAmount: 0, note: '', error: '' }
+  formDialog.value = { visible: true, isEdit: false, _id: '', ticker: '', costPrice: 0, quantity: 0, totalAmount: 0, note: '', error: '' }
 }
 
 function openEditDialog(item: StockItem) {
   const amount = item.costPrice * item.quantity
   formDialog.value = {
     visible: true, isEdit: true,
+    _id: item.id,
     ticker: item.ticker, costPrice: item.costPrice,
     quantity: item.quantity, totalAmount: parseFloat(amount.toFixed(4)),
     note: item.note || '', error: '',
@@ -371,10 +380,6 @@ function validateForm(): boolean {
   if (!d.ticker.trim()) { d.error = '请输入标的代码'; return false }
   if (d.costPrice <= 0) { d.error = '成本价必须大于 0'; return false }
   if (d.totalAmount <= 0) { d.error = '总费用必须大于 0'; return false }
-  if (!d.isEdit && stocks.value.find(s => s.ticker === d.ticker.trim().toUpperCase())) {
-    d.error = `标的 ${d.ticker} 已存在，请勿重复添加`
-    return false
-  }
   return true
 }
 
@@ -382,16 +387,26 @@ function confirmFormDialog() {
   if (!validateForm()) return
   const d = formDialog.value
   const tickerUpper = d.ticker.trim().toUpperCase()
-  const record: StockItem = {
-    ticker: tickerUpper,
-    costPrice: d.costPrice,
-    quantity: d.quantity,
-    note: d.note.trim() || undefined,
-  }
+  const today = new Date().toISOString().slice(0, 10)
   if (d.isEdit) {
-    const idx = stocks.value.findIndex(s => s.ticker === tickerUpper)
-    if (idx !== -1) stocks.value[idx] = record
+    const idx = stocks.value.findIndex(s => s.id === d._id)
+    if (idx !== -1) {
+      stocks.value[idx] = {
+        ...stocks.value[idx],
+        costPrice: d.costPrice,
+        quantity: d.quantity,
+        note: d.note.trim() || undefined,
+      }
+    }
   } else {
+    const record: StockItem = {
+      id: Date.now().toString(),
+      ticker: tickerUpper,
+      costPrice: d.costPrice,
+      quantity: d.quantity,
+      note: d.note.trim() || undefined,
+      createdAt: today,
+    }
     stocks.value.push(record)
   }
   d.visible = false
@@ -401,19 +416,22 @@ function confirmFormDialog() {
 
 // ── 删除 ────────────────────────────────────────────────────────────────────
 
-const deleteDialog = ref({ visible: false, ticker: '' })
+const deleteDialog = ref({ visible: false, id: '', ticker: '' })
 
-function openDeleteDialog(ticker: string) {
-  deleteDialog.value = { visible: true, ticker }
+function openDeleteDialog(id: string) {
+  const item = stocks.value.find(s => s.id === id)
+  deleteDialog.value = { visible: true, id, ticker: item?.ticker ?? '' }
 }
 
 function confirmDelete() {
-  const ticker = deleteDialog.value.ticker
-  const idx = stocks.value.findIndex(s => s.ticker === ticker)
-  if (idx !== -1) stocks.value.splice(idx, 1)
-  delete livePrices.value[ticker]
+  const idx = stocks.value.findIndex(s => s.id === deleteDialog.value.id)
+  if (idx !== -1) {
+    const ticker = stocks.value[idx].ticker
+    stocks.value.splice(idx, 1)
+    delete livePrices.value[ticker]
+  }
   deleteDialog.value.visible = false
-  ElMessage.success(`${ticker} 已删除`)
+  ElMessage.success(`已删除`)
 }
 
 // ── 生命周期 ─────────────────────────────────────────────────────────────────
