@@ -388,14 +388,27 @@ async function confirmFormDialog() {
   const d = formDialog.value
   const tickerUpper = d.ticker.trim().toUpperCase()
   if (d.isEdit) {
-    const idx = stocks.value.findIndex(s => s.id === d._id)
-    if (idx !== -1) {
-      stocks.value[idx] = {
-        ...stocks.value[idx],
-        costPrice: d.costPrice,
+    try {
+      const payload = {
+        cost_price: d.costPrice,
         quantity: d.quantity,
         note: d.note.trim() || undefined,
       }
+      const res: any = await request.put(`/api/v1/us-stock/positions/${d._id}`, payload)
+      if (res?.data) {
+        const idx = stocks.value.findIndex(s => s.id === d._id)
+        if (idx !== -1) {
+          stocks.value[idx] = {
+            ...stocks.value[idx],
+            costPrice: res.data.cost_price,
+            quantity: res.data.quantity,
+            note: res.data.note || '',
+          }
+        }
+      }
+    } catch (e: any) {
+      ElMessage.error(e.response?.data?.message || '编辑失败')
+      return
     }
   } else {
     try {
@@ -422,7 +435,7 @@ async function confirmFormDialog() {
     }
   }
   d.visible = false
-  ElMessage.success(`${tickerUpper} 已添加`)
+  ElMessage.success(d.isEdit ? `${tickerUpper} 已更新` : `${tickerUpper} 已添加`)
   await refreshPrices()
 }
 
