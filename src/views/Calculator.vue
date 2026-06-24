@@ -94,6 +94,11 @@ const spDays = computed(() => {
   return getDaysFromToday(new Date(spExpirationDate.value))
 })
 const spCurrentPrice = ref<number | undefined>(undefined)
+const spQuantity = ref(1)
+
+const spTotalPremium = computed(() => spPremium.value * spQuantity.value)
+const spTotalCost = computed(() => spStrike.value * spQuantity.value)
+const spNetCost = computed(() => (spStrike.value - spPremium.value) * spQuantity.value)
 
 const spPeriodYield = computed(() => {
   if (spStrike.value === 0) return 0
@@ -105,12 +110,10 @@ const spAnnualYield = computed(() => {
   return spPeriodYield.value * (365 / spDays.value)
 })
 
-const spNetCost = computed(() => spStrike.value - spPremium.value)
-
 const spMarginOfSafety = computed(() => {
   const cp = spCurrentPrice.value
   if (cp === undefined || cp === null || cp === 0) return null
-  return ((cp - spNetCost.value) / cp) * 100
+  return ((cp - spNetCost.value / spQuantity.value) / cp) * 100
 })
 </script>
 
@@ -209,8 +212,12 @@ const spMarginOfSafety = computed(() => {
                 <el-input-number v-model="spPremium" :min="0" :precision="1" size="small" />
               </div>
               <div class="field">
-                <label>行权价 / 接货本金（Strike Price）</label>
+                <label>行权价 / 接货本金（每股 Strike）</label>
                 <el-input-number v-model="spStrike" :min="0" :precision="2" size="small" />
+              </div>
+              <div class="field">
+                <label>数量（张合约）</label>
+                <el-input-number v-model="spQuantity" :min="1" :step="1" size="small" />
               </div>
               <div class="field">
                 <label>行权日（Expiration Date）</label>
@@ -232,9 +239,12 @@ const spMarginOfSafety = computed(() => {
               <div class="result-col">
                 <div class="block-label">📈 核心指标</div>
                 <div class="data-row">期权剩余天数 <strong>{{ spDays }} 天</strong>（距今至 {{ spExpirationDate || '—' }}）</div>
-                <div class="data-row">单期收益率 <strong>{{ spPeriodYield.toFixed(2) }}%</strong></div>
-                <div class="data-row">年化收益率 <strong class="highlight">{{ spAnnualYield.toFixed(2) }}%</strong></div>
-                <div class="data-row">实际持仓成本 <strong>{{ spNetCost.toFixed(2) }}</strong></div>
+                <div class="data-row">张数 <strong>{{ spQuantity }} 张</strong></div>
+                <div class="data-row">单期收益率（每股）<strong>{{ spPeriodYield.toFixed(2) }}%</strong></div>
+                <div class="data-row">年化收益率（每股）<strong class="highlight">{{ spAnnualYield.toFixed(2) }}%</strong></div>
+                <div class="data-row">总权利金收入 <strong>{{ spTotalPremium.toFixed(2) }}</strong></div>
+                <div class="data-row">接货总成本 <strong>{{ spTotalCost.toFixed(2) }}</strong></div>
+                <div class="data-row">净成本（接货后）<strong>{{ spNetCost.toFixed(2) }}</strong></div>
                 <div class="data-row" v-if="spMarginOfSafety !== null">
                   资金安全垫 <strong :class="spMarginOfSafety >= 0 ? 'safe' : 'danger'">{{ spMarginOfSafety.toFixed(2)
                   }}%</strong>
@@ -245,7 +255,7 @@ const spMarginOfSafety = computed(() => {
               <div class="result-col">
                 <div class="block-label">🧮 计算过程</div>
                 <div class="formula-block">
-                  <div class="formula-step">单期收益率 = {{ spPremium }} / {{ spStrike }} = {{ (spPremium /
+                  <div class="formula-step">每股单期收益率 = {{ spPremium }} / {{ spStrike }} = {{ (spPremium /
                     spStrike).toFixed(4) }}
                   </div>
                   <div class="formula-final">{{ spPeriodYield.toFixed(4) }}%</div>
@@ -255,10 +265,9 @@ const spMarginOfSafety = computed(() => {
                   <div class="formula-final highlight">{{ spAnnualYield.toFixed(4) }}%</div>
                 </div>
                 <div class="formula-block" style="margin-top: 8px;">
-                  <div class="formula-step">实际持仓成本 = {{ spStrike }} − {{ spPremium }} = {{ (spStrike -
-                    spPremium).toFixed(4) }}
-                  </div>
-                  <div class="formula-final">{{ spNetCost.toFixed(4) }}</div>
+                  <div class="formula-step">总权利金 = {{ spPremium }} × {{ spQuantity }} = {{ spTotalPremium.toFixed(4) }}</div>
+                  <div class="formula-step" style="margin-top:4px">接货总成本 = {{ spStrike }} × {{ spQuantity }} = {{ spTotalCost.toFixed(4) }}</div>
+                  <div class="formula-final">净成本 = ({{ spStrike }} − {{ spPremium }}) × {{ spQuantity }} = {{ spNetCost.toFixed(4) }}</div>
                 </div>
               </div>
             </div>
@@ -270,11 +279,10 @@ const spMarginOfSafety = computed(() => {
                   年化 {{ spAnnualYield.toFixed(2) }}%
                 </el-tag>
                 <p class="conclusion-desc">
-                  若被行权接货，实际持仓成本为 <strong>{{ spNetCost.toFixed(2) }}</strong>，相较行权价节省了 <strong>{{ spPremium.toFixed(4)
-                  }}</strong> / 股。
+                  若被行权接货，净成本为 <strong>{{ spNetCost.toFixed(2) }}</strong>（{{ spQuantity }} 张 × ({{ spStrike }} − {{ spPremium }})），
+                  每张合约权利金收益 <strong>{{ spPremium.toFixed(4) }}</strong>。
                   <span v-if="spMarginOfSafety !== null">
-                    当前股价 <strong>{{ spCurrentPrice }}</strong> 较持仓成本高出 <strong>{{ spMarginOfSafety.toFixed(2)
-                    }}%</strong>，
+                    当前股价 <strong>{{ spCurrentPrice }}</strong> 较每股持仓成本 {{ (spNetCost / spQuantity).toFixed(2) }} 高出 <strong>{{ spMarginOfSafety.toFixed(2) }}</strong>，
                     <span :class="spMarginOfSafety >= 0 ? 'safe' : 'danger'">
                       {{ spMarginOfSafety >= 0 ? '浮盈安全垫充足' : '已处于浮亏状态' }}
                     </span>。
